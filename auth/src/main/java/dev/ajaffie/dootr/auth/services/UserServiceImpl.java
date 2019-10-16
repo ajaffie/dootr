@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.transaction.Transactional;
 import javax.ws.rs.core.Response;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -32,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Override
+    @Transactional
     public CompletionStage<Response> addUser(AddUserDto addUserRequest) {
         if (!isEmailValid(addUserRequest.email)) {
             return CompletableFuture.completedFuture(BasicResponse.error("Invalid email address."));
