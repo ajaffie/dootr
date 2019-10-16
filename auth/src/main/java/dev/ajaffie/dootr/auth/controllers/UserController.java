@@ -1,10 +1,7 @@
 package dev.ajaffie.dootr.auth.controllers;
 
 import dev.ajaffie.dootr.auth.domain.AddUserDto;
-import dev.ajaffie.dootr.auth.domain.BasicResponse;
 import dev.ajaffie.dootr.auth.services.UserService;
-import io.vertx.axle.core.Vertx;
-import io.vertx.core.json.Json;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +33,6 @@ public class UserController {
     @Path("/adduser")
     public CompletionStage<Response> addUser(@RequestBody AddUserDto addUserRequest) {
         logger.info("Add user request received for username {}.", addUserRequest.username);
-        logger.debug("Full request: {}", Json.encodePrettily(addUserRequest));
         return userService.addUser(addUserRequest);
     }
 

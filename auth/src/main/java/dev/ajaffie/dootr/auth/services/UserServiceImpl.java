@@ -20,32 +20,33 @@ import java.util.regex.Pattern;
 @ApplicationScoped
 public class UserServiceImpl implements UserService {
 
-    private final MySQLPool client;
-    private final boolean createSchema;
+    private MySQLPool client;
+    private boolean createSchema;
 
     @Inject
-    public UserServiceImpl(MySQLPool client){
+    public UserServiceImpl(MySQLPool client) {
         this.client = client;
-        this.createSchema = System.getenv().containsKey("DOOTR_CREATE_SCHEMA");
+        this.createSchema = !System.getenv().containsKey("DOOTR_NO_CREATE_SCHEMA");
     }
 
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     @Override
     public CompletionStage<Response> addUser(AddUserDto addUserRequest) {
-        CompletableFuture<Response> future = new CompletableFuture<>();
         if (!isEmailValid(addUserRequest.email)) {
-            future.complete(BasicResponse.error("Invalid email address."));
+            return CompletableFuture.completedFuture(BasicResponse.error("Invalid email address."));
         }
-        if (getByEmail(addUserRequest.email).toCompletableFuture().join() != null
-        || getByUsername(addUserRequest.username).toCompletableFuture().join() != null) {
-            future.complete(BasicResponse.error("A user with the provided email or username already exists."));
-        }
-        User newUser = new User(addUserRequest.email, addUserRequest.username, addUserRequest.password);
-        saveUser(newUser)
-                .thenAccept(result -> future.complete(result ? BasicResponse.ok() : BasicResponse.error("An error occurred while saving the user.")));
 
-        return future;
+        return getByEmail(addUserRequest.email)
+                .thenCombine(getByUsername(addUserRequest.username), (u1, u2) -> u1 != null || u2 != null)
+                .thenCompose(userExists -> {
+                    if (userExists) {
+                        throw new RuntimeException("A user with the provided email or username already exists.");
+                    }
+                    return saveUser(new User(addUserRequest.email, addUserRequest.username, addUserRequest.password));
+                })
+                .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
+                .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : s);
     }
 
     private CompletionStage<User> getByEmail(String email) {
@@ -68,8 +69,8 @@ public class UserServiceImpl implements UserService {
 
     private CompletionStage<Boolean> saveUser(User user) {
         return client.preparedQuery(
-                "INSERT INTO Users (Username, Email, Salt, PasswordHash) VALUES (?, ?, ?, ?)",
-                    user.row())
+                "INSERT INTO Users (Username, Email, Salt, PasswordHash, Enabled, VerifyCode) VALUES (?, ?, ?, ?, ?, ?)",
+                user.row())
                 .thenApply(RowSet::rowCount)
                 .thenApply(num -> num == 1);
     }
@@ -78,23 +79,27 @@ public class UserServiceImpl implements UserService {
     @PostConstruct
     void config() {
         if (createSchema) {
-            doCreateSchema();
+            doCreateSchema().toCompletableFuture().join();
         }
     }
 
-    private void doCreateSchema() {
+    private CompletionStage doCreateSchema() {
         logger.info("Creating database schema...");
-        client.query("CREATE TABLE IF NOT EXISTS Users (\n" +
+        return client.query("CREATE TABLE IF NOT EXISTS Users (\n" +
                 "    Id INT PRIMARY KEY AUTO_INCREMENT,\n" +
                 "    Username MEDIUMTEXT NOT NULL,\n" +
                 "    Email MEDIUMTEXT NOT NULL,\n" +
                 "    Salt TINYTEXT NOT NULL,\n" +
                 "    PasswordHash MEDIUMTEXT NOT NULL\n" +
                 ");")
-                .toCompletableFuture()
-                .join();
-
-        logger.info("Schema creation complete.");
+                .thenCompose(r -> client.query(
+                        "ALTER TABLE Users\n" +
+                                "ADD COLUMN IF NOT EXISTS " +
+                                "Enabled BOOLEAN NOT NULL DEFAULT FALSE,\n" +
+                                "ADD COLUMN IF NOT EXISTS " +
+                                "VerifyCode TINYTEXT NOT NULL;"
+                ))
+                .thenRun(() -> logger.info("Schema creation complete."));
     }
 
 

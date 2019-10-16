@@ -12,6 +12,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Random;
 
 public class User {
+    public static final int VERIFY_CODE_LENGTH = 12;
     private static final Random RANDOM = new SecureRandom();
     private long id;
     private String email;
@@ -19,6 +20,8 @@ public class User {
     // These are hex encoded.
     private String salt;
     private String passwordHash;
+    private boolean enabled;
+    private String verifyCode;
 
     public User(String email, String username, String password) {
         this.email = email;
@@ -27,6 +30,8 @@ public class User {
         RANDOM.nextBytes(salt);
         this.salt = DatatypeConverter.printHexBinary(salt);
         this.passwordHash = hashPassword(password, salt);
+        this.enabled = false;
+        this.verifyCode = getRandomString(VERIFY_CODE_LENGTH);
     }
 
     private User() {
@@ -40,11 +45,13 @@ public class User {
         user.username = row.getString("Username");
         user.salt = row.getString("Salt");
         user.passwordHash = row.getString("PasswordHash");
+        user.enabled = row.getBoolean("Enabled");
+        user.verifyCode = row.getString("VerifyCode");
         return user;
     }
 
     public Tuple row() {
-        return Row.of(username, email, salt, passwordHash);
+        return Row.of(username, email, salt, passwordHash, enabled, verifyCode);
     }
 
 
@@ -85,5 +92,15 @@ public class User {
         } finally {
             spec.clearPassword();
         }
+    }
+
+    public static String getRandomString(int len) {
+        final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder res = new StringBuilder();
+        while (res.length() < len) {
+            int i = RANDOM.nextInt(CHARS.length());
+            res.append(CHARS.charAt(i));
+        }
+        return res.toString();
     }
 }
