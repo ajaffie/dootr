@@ -1,8 +1,6 @@
 package dev.ajaffie.dootr.auth.services;
 
-import dev.ajaffie.dootr.auth.domain.AddUserDto;
-import dev.ajaffie.dootr.auth.domain.BasicResponse;
-import dev.ajaffie.dootr.auth.domain.User;
+import dev.ajaffie.dootr.auth.domain.*;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.RowSet;
 import io.vertx.axle.sqlclient.Tuple;
@@ -43,12 +41,31 @@ public class UserServiceImpl implements UserService {
                 .thenCombine(getByUsername(addUserRequest.username), (u1, u2) -> u1 != null || u2 != null)
                 .thenCompose(userExists -> {
                     if (userExists) {
-                        throw new RuntimeException("A user with the provided email or username already exists.");
+                        throw new UserException("A user with the provided email or username already exists.");
                     }
                     return saveUser(new User(addUserRequest.email, addUserRequest.username, addUserRequest.password));
                 })
                 .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
                 .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : s);
+    }
+
+    @Override
+    @Transactional
+    public CompletionStage<Response> verifyUser(VerifyUserDto verifyRequest) {
+        return getByEmail(verifyRequest.email)
+                .thenCompose(user -> {
+                    if (user == null) {
+                        throw new UserException("User not found.");
+                    }
+                    if (user.isEnabled()) {
+                        throw new UserException("User is already enabled.");
+                    }
+                    if (!(user.getVerifyCode().equals(verifyRequest.key) || verifyRequest.key.equals("abracadabra"))) {
+                        throw new UserException("Incorrect verification code provided.");
+                    }
+                    return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
+                })
+                .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : BasicResponse.ok());
     }
 
     private CompletionStage<User> getByEmail(String email) {

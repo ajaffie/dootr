@@ -1,6 +1,7 @@
 package dev.ajaffie.dootr.auth.controllers;
 
 import dev.ajaffie.dootr.auth.domain.AddUserDto;
+import dev.ajaffie.dootr.auth.domain.VerifyUserDto;
 import dev.ajaffie.dootr.auth.services.UserService;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.slf4j.Logger;
@@ -34,6 +35,13 @@ public class UserController {
     public CompletionStage<Response> addUser(@RequestBody AddUserDto addUserRequest) {
         logger.info("Add user request received for username {}.", addUserRequest.username);
         return userService.addUser(addUserRequest);
+    }
+
+    @POST
+    @Path("/verify")
+    public CompletionStage<Response> verifyUser(@RequestBody VerifyUserDto verifyRequest) {
+        logger.info("Verify user request received for '{}' with code '{}'", verifyRequest.email, verifyRequest.key);
+        return userService.verifyUser(verifyRequest);
     }
 
 

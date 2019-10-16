@@ -103,4 +103,12 @@ public class User {
         }
         return res.toString();
     }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public String getVerifyCode() {
+        return verifyCode;
+    }
 }
