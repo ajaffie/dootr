@@ -11,4 +11,6 @@ public interface UserService {
     CompletionStage<Response> addUser(AddUserDto addUserRequest);
 
     CompletionStage<Response> verifyUser(VerifyUserDto verifyRequest);
+
+    CompletionStage<Response> resendVerification(VerifyUserDto verifyRequest);
 }

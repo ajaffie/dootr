@@ -44,5 +44,12 @@ public class UserController {
         return userService.verifyUser(verifyRequest);
     }
 
+    @POST
+    @Path("/resendVerification")
+    public CompletionStage<Response> resendVerify(@RequestBody VerifyUserDto verifyRequest) {
+        logger.info("Resend verification request received for '{}'", verifyRequest.email);
+        return userService.resendVerification(verifyRequest);
+    }
+
 
 }

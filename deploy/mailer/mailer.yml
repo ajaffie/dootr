@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailer
+  labels:
+    app: auth
+spec:
+  ports:
+  - port: 25
+  selector:
+    app: auth
+    tier: mailer
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailer
+  labels:
+    app: auth
+spec:
+  selector:
+    matchLabels:
+      app: auth
+      tier: mailer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: auth
+        tier: mailer
+    spec:
+      containers:
+      - image: catatnight/postfix:latest
+        name: mailer
+        env:
+        - name: maildomain
+          value: dootr.ajaffie.dev
+        - name: smtp_user
+          valueFrom:
+            secretKeyRef:
+              name: mailer-creds
+              key: creds
+        ports:
+        - containerPort: 25
+          name: smtp
+        volumeMounts:
+        - name: mailer-dkim
+          mountPath: /etc/opendkim/domainkeys
+          readOnly: true
+      volumes:
+      - name: mailer-dkim
+        secret:
+          secretName: mailer-dkim-secret
+          items:
+          - key: mail.private
+            path: .private
+            mode: 444
+        

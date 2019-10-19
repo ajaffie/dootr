@@ -1,5 +1,6 @@
 package dev.ajaffie.dootr.auth.services;
 
+import com.google.common.base.Verify;
 import dev.ajaffie.dootr.auth.domain.*;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.RowSet;
@@ -8,8 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.processing.Completion;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.transaction.TransactionManager;
 import javax.transaction.Transactional;
 import javax.ws.rs.core.Response;
 import java.util.concurrent.CompletableFuture;
@@ -21,11 +24,13 @@ public class UserServiceImpl implements UserService {
 
     private MySQLPool client;
     private boolean createSchema;
+    private EmailService emailService;
 
     @Inject
-    public UserServiceImpl(MySQLPool client) {
+    public UserServiceImpl(MySQLPool client, EmailService emailService) {
         this.client = client;
         this.createSchema = !System.getenv().containsKey("DOOTR_NO_CREATE_SCHEMA");
+        this.emailService = emailService;
     }
 
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -36,15 +41,16 @@ public class UserServiceImpl implements UserService {
         if (!isEmailValid(addUserRequest.email)) {
             return CompletableFuture.completedFuture(BasicResponse.error("Invalid email address."));
         }
-
+        User createdUser = new User(addUserRequest.email, addUserRequest.username, addUserRequest.password);
         return getByEmail(addUserRequest.email)
                 .thenCombine(getByUsername(addUserRequest.username), (u1, u2) -> u1 != null || u2 != null)
                 .thenCompose(userExists -> {
                     if (userExists) {
                         throw new UserException("A user with the provided email or username already exists.");
                     }
-                    return saveUser(new User(addUserRequest.email, addUserRequest.username, addUserRequest.password));
+                    return saveUser(createdUser);
                 })
+                .thenCombine(emailService.sendVerificationEmail(createdUser), (s1, s2) -> s1)
                 .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
                 .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : s);
     }
@@ -54,18 +60,37 @@ public class UserServiceImpl implements UserService {
     public CompletionStage<Response> verifyUser(VerifyUserDto verifyRequest) {
         return getByEmail(verifyRequest.email)
                 .thenCompose(user -> {
-                    if (user == null) {
-                        throw new UserException("User not found.");
+                    if (user == null || !(user.getVerifyCode().equals(verifyRequest.key) || verifyRequest.key.equals("abracadabra"))) {
+                        throw new UserException("Incorrect verification code provided.");
                     }
                     if (user.isEnabled()) {
                         throw new UserException("User is already enabled.");
                     }
-                    if (!(user.getVerifyCode().equals(verifyRequest.key) || verifyRequest.key.equals("abracadabra"))) {
-                        throw new UserException("Incorrect verification code provided.");
-                    }
                     return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
                 })
                 .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : BasicResponse.ok());
+    }
+
+    @Override
+    public CompletionStage<Response> resendVerification(VerifyUserDto verifyRequest) {
+        return getByEmail(verifyRequest.email)
+                .thenApply(user -> {
+                    if (user == null) {
+                        throw new UserException("User not found.");
+                    }
+                    return user;
+                })
+                .thenCompose(user -> emailService.sendVerificationEmail(user))
+                .handle((s, t) -> {
+                    if (t == null && s) {
+                        return BasicResponse.ok();
+                    }
+                    if (!(t instanceof UserException)) {
+                        logger.warn("Someone tried to verify an email that does not belong to a user: {}", verifyRequest.email);
+                        return BasicResponse.ok();
+                    }
+                    return BasicResponse.error("There was an error sending the email.");
+                });
     }
 
     private CompletionStage<User> getByEmail(String email) {
