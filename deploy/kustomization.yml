@@ -1,0 +1,9 @@
+secretGenerator:
+- name: authdb-creds
+  literals:
+  - username=auth
+  - password=i9&Q#r987bse8fnsd
+resources:
+- prereqs/storage-classes.yml
+- authdb/authdb.yml
+#- mailer/mailer.yml

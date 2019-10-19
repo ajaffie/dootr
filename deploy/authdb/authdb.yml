@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: authdb
+  labels:
+    app: auth
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: auth
+    tier: authdb
+  clusterIP: None
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authdb-data
+  labels:
+    app: auth
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 15Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authdb
+  labels:
+    app: auth
+spec:
+  selector:
+    matchLabels:
+      app: auth
+      tier: authdb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: auth
+        tier: authdb
+    spec:
+      containers:
+      - image: mariadb:bionic
+        name: authdb
+        env:
+        - name: MYSQL_DATABASE
+          value: dootr.auth
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: authdb-creds
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authdb-creds
+              key: password
+        - name: MYSQL_RANDOM_ROOT_PASSWORD
+          value: "yes"
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: authdb-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: authdb-persistent-storage
+        persistentVolumeClaim:
+          claimName: authdb-data
