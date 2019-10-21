@@ -2,7 +2,6 @@ package dev.ajaffie.dootr.auth.services;
 
 import dev.ajaffie.dootr.auth.domain.Email;
 import dev.ajaffie.dootr.auth.domain.User;
-import dev.ajaffie.dootr.auth.domain.UserException;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.ReactiveMailer;
 
@@ -17,7 +16,7 @@ public class EmailServiceImpl implements EmailService {
     private final ReactiveMailer mailer;
 
     @Inject
-    public EmailServiceImpl(ReactiveMailer reactiveMailer){
+    public EmailServiceImpl(ReactiveMailer reactiveMailer) {
         this.mailer = reactiveMailer;
     }
 

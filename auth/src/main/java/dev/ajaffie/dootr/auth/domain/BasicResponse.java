@@ -1,5 +1,6 @@
 package dev.ajaffie.dootr.auth.domain;
 
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
 public class BasicResponse {
@@ -13,7 +14,7 @@ public class BasicResponse {
             this.status = "OK";
             this.error = null;
         } else {
-            this.status = "ERROR";
+            this.status = "error";
             this.error = e;
         }
     }
@@ -24,6 +25,12 @@ public class BasicResponse {
 
     public static Response ok() {
         return Response.ok(new BasicResponse(true, null)).build();
+    }
+
+    public static Response okWithAuth(String token) {
+        return Response.ok(new BasicResponse(true, null))
+                .cookie(new NewCookie("session", token))
+                .build();
     }
 
 

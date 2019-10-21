@@ -50,10 +50,30 @@ public class User {
         return user;
     }
 
+    public static String hashPassword(String password, byte[] salt) {
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 50000, 256);
+        try {
+            return DatatypeConverter.printHexBinary(SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded());
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new AssertionError("Error hashing password: " + e.getMessage());
+        } finally {
+            spec.clearPassword();
+        }
+    }
+
+    public static String getRandomString(int len) {
+        final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder res = new StringBuilder();
+        while (res.length() < len) {
+            int i = RANDOM.nextInt(CHARS.length());
+            res.append(CHARS.charAt(i));
+        }
+        return res.toString();
+    }
+
     public Tuple row() {
         return Row.of(username, email, salt, passwordHash, enabled, verifyCode);
     }
-
 
     public long getId() {
         return id;
@@ -81,27 +101,6 @@ public class User {
 
     public byte[] getPasswordHashAsBytes() {
         return DatatypeConverter.parseHexBinary(passwordHash);
-    }
-
-    public static String hashPassword(String password, byte[] salt) {
-        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 50000, 256);
-        try {
-            return DatatypeConverter.printHexBinary(SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded());
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new AssertionError("Error hashing password: " + e.getMessage());
-        } finally {
-            spec.clearPassword();
-        }
-    }
-
-    public static String getRandomString(int len) {
-        final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        StringBuilder res = new StringBuilder();
-        while (res.length() < len) {
-            int i = RANDOM.nextInt(CHARS.length());
-            res.append(CHARS.charAt(i));
-        }
-        return res.toString();
     }
 
     public boolean isEnabled() {

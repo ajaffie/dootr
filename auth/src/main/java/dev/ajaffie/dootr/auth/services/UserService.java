@@ -1,6 +1,7 @@
 package dev.ajaffie.dootr.auth.services;
 
 import dev.ajaffie.dootr.auth.domain.AddUserDto;
+import dev.ajaffie.dootr.auth.domain.UserCreds;
 import dev.ajaffie.dootr.auth.domain.VerifyUserDto;
 
 import javax.ws.rs.core.Response;
@@ -13,4 +14,8 @@ public interface UserService {
     CompletionStage<Response> verifyUser(VerifyUserDto verifyRequest);
 
     CompletionStage<Response> resendVerification(VerifyUserDto verifyRequest);
+
+    CompletionStage<Response> login(UserCreds creds);
+
+    CompletionStage<Response> logout();
 }
