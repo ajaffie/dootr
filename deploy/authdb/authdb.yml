@@ -45,17 +45,22 @@ spec:
         tier: authdb
     spec:
       containers:
-      - image: mariadb:bionic
+      - image: bitnami/mariadb:10.3
         name: authdb
         env:
-        - name: MYSQL_DATABASE
+        - name: MARIADB_DATABASE
           value: dootr.auth
-        - name: MYSQL_USER
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authdb-creds
+              key: root
+        - name: MARIADB_USER
           valueFrom:
             secretKeyRef:
               name: authdb-creds
               key: username
-        - name: MYSQL_PASSWORD
+        - name: MARIADB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: authdb-creds
@@ -67,7 +72,7 @@ spec:
           name: mysql
         volumeMounts:
         - name: authdb-persistent-storage
-          mountPath: /var/lib/mysql
+          mountPath: /bitnami/mariadb
       volumes:
       - name: authdb-persistent-storage
         persistentVolumeClaim:

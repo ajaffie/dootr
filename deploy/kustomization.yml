@@ -3,6 +3,7 @@ secretGenerator:
   literals:
   - username=auth
   - password=i9&Q#r987bse8fnsd
+  - root=jkwcynuiwagrcuk4yb4kuwcg3uyfb4xwk4nuhbn8ocr7nh32nofd
 - name: mailer-dkim-secret
   files:
   - mailer/mail.private
@@ -11,5 +12,7 @@ secretGenerator:
   - creds=auth:iej4g8he7NISGfiges3
 resources:
 - prereqs/storage-classes.yml
+- prereqs/nginx-ingress.yml
 - authdb/authdb.yml
 - mailer/mailer.yml
+- auth.yml

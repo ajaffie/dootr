@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  labels:
+    app: auth
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: auth
+    tier: app
+  clusterIP: None
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: auth-app
+imagePullSecrets:
+- name: regcred
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  labels:
+    app: auth
+spec:
+  selector:
+    matchLabels:
+      app: auth
+      tier: app
+  strategy:
+    type: Recreate
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: auth
+        tier: app
+    spec:
+      serviceAccountName: auth-app
+      containers:
+      - image: gcr.io/savvy-concord-255819/auth:latest
+        name: auth
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: QUARKUS_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: authdb-creds
+              key: username
+        - name: QUARKUS_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authdb-creds
+              key: password
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: auth
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+  - host: localhost
+    http:
+      paths:
+      - path: /login
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /logout
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /adduser
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /verify
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /resendVerification
+        backend:
+          serviceName: auth
+          servicePort: http
