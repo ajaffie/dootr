@@ -204,6 +204,7 @@ function App() {
           <button type="submit" onClick={e => register(email, username, password)} >Register</button>
           <button type="submit" onClick={e => verify(email, verifyKey)} >Verify</button>
           <button type="submit" onClick={e => resendVerification(email)} >Resend Verification</button>
+          <button type="submit" onClick={e => logout()} >Logout</button>
         </div>
         <br /> <br />
         <div>
