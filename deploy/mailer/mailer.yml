@@ -31,6 +31,19 @@ spec:
         app: auth
         tier: mailer
     spec:
+      initContainers:
+      - name: mailer-fix-permissions
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - "mkdir -p /etc/opendkim/domainkeys && cp /tmp/domainkeys/.private /etc/opendkim/domainkeys && chown -R 103:108 /etc/opendkim/domainkeys && chmod -R 440 /etc/opendkim/domainkeys"
+        volumeMounts:
+        - name: mailer-dkim
+          mountPath: /tmp/domainkeys
+          readOnly: true
+        securityContext:
+          runAsUser: 0
       containers:
       - image: catatnight/postfix:latest
         name: mailer
@@ -45,10 +58,6 @@ spec:
         ports:
         - containerPort: 25
           name: smtp
-        volumeMounts:
-        - name: mailer-dkim
-          mountPath: /etc/opendkim/domainkeys
-          readOnly: true
       volumes:
       - name: mailer-dkim
         secret:
@@ -56,5 +65,4 @@ spec:
           items:
           - key: mail.private
             path: .private
-            mode: 444
         

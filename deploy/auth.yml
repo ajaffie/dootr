@@ -68,7 +68,34 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-  - host: localhost
+  - host: dootr.ajaffie.dev
+    http:
+      paths:
+      - path: /login
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /logout
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /adduser
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /verify
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /resendVerification
+        backend:
+          serviceName: auth
+          servicePort: http
+      - path: /.well-known/jwks.json
+        backend:
+          serviceName: auth
+          servicePort: http
+  - host: ajaffie.cse356.compas.cs.stonybrook.edu
     http:
       paths:
       - path: /login
