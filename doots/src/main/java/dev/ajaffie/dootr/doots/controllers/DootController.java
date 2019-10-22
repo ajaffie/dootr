@@ -41,18 +41,18 @@ public class DootController {
     public CompletionStage<Response> createDoot(@CookieParam("session") Cookie sessionCookie, @RequestBody AddItemDto addItemDto) {
         User user = getUserFromCookie(sessionCookie);
         if (user == null) {
-            return CompletableFuture.completedFuture(Response.status(Response.Status.UNAUTHORIZED).entity(new ErrorDto("User is not logged in.")).build());
+            return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("User is not logged in.")).build());
         }
         if (addItemDto.content == null || addItemDto.content.length() == 0) {
-            return CompletableFuture.completedFuture(Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("No content supplied.")).build());
+            return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("No content supplied.")).build());
         }
         if (addItemDto.content.length() > 280) {
-            return CompletableFuture.completedFuture(Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Doot is too long.")).build());
+            return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("Doot is too long.")).build());
         }
         return dootService.createDoot(addItemDto, user)
                 .thenApply(id -> {
                     if (id == null) {
-                        return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(new ErrorDto("Doot not created. Try again later.")).build();
+                        return Response.status(Response.Status.OK).entity(new ErrorDto("Doot not created. Try again later.")).build();
                     } else {
                         return Response.ok(new OkWithIdDto(id)).build();
                     }
@@ -65,7 +65,7 @@ public class DootController {
         return dootService.getDoot(id)
                 .thenApply(doot -> {
                     if (doot == null) {
-                        return Response.status(Response.Status.NOT_FOUND).entity(new ErrorDto("Doot not found.")).build();
+                        return Response.status(Response.Status.OK).entity(new ErrorDto("Doot not found.")).build();
                     }
                     return Response.ok(new OkWithItemDto(ItemDto.from(doot))).build();
                 });
@@ -75,7 +75,7 @@ public class DootController {
         try {
             JsonWebToken jwt = jwtFactory.parse(sessionCookie.getValue(), jwtAuthContextInfo);
             return User.fromJwt(jwt);
-        } catch (ParseException pe) {
+        } catch (Exception e) {
             return null;
         }
     }

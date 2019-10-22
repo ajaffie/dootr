@@ -63,7 +63,14 @@ public class UserServiceImpl implements UserService {
                 })
                 .thenCombine(emailService.sendVerificationEmail(createdUser), (s1, s2) -> s1)
                 .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
-                .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : s);
+                .handle((s, ex) ->{
+                    if (ex != null && !ex.getMessage().equals("An error occurred while creating the user.") && ex instanceof UserException) {
+                        return Response.status(Response.Status.OK).entity(new BasicResponse(false, ex.getMessage())).build();
+                    } else if (ex != null) {
+                        return BasicResponse.error(ex.getMessage());
+                    }
+                    return s;
+                });
     }
 
     @Override
@@ -72,6 +79,7 @@ public class UserServiceImpl implements UserService {
         return getByEmail(verifyRequest.email)
                 .thenCompose(user -> {
                     if (user == null || !(user.getVerifyCode().equals(verifyRequest.key) || verifyRequest.key.equals("abracadabra"))) {
+                        logger.error("VERIFY: user {} expected {} got {}", user.getEmail(), user.getVerifyCode(), verifyRequest.key);
                         throw new UserException("Incorrect verification code provided.");
                     }
                     if (user.isEnabled()) {
@@ -79,7 +87,7 @@ public class UserServiceImpl implements UserService {
                     }
                     return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
                 })
-                .handle((s, ex) -> ex != null ? BasicResponse.error(ex.getMessage()) : BasicResponse.ok());
+                .handle((s, ex) -> ex != null ? Response.status(Response.Status.OK).entity(new BasicResponse(false, ex.getMessage())).build() : BasicResponse.ok());
     }
 
     @Override
@@ -125,7 +133,9 @@ public class UserServiceImpl implements UserService {
                     }
                 })
                 .handle((token, err) -> {
-                    if (err != null) {
+                    if (err instanceof UserException) {
+                        return Response.status(Response.Status.OK).entity(new BasicResponse(false, err.getMessage())).build();
+                    } else if (err != null) {
                         return BasicResponse.error(err.getMessage());
                     }
                     return BasicResponse.okWithAuth(token);

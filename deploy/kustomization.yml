@@ -19,7 +19,7 @@ resources:
 - prereqs/storage-classes.yml
 - prereqs/nginx-ingress.yml
 - authdb/authdb.yml
-- mailer/mailer.yml
 - dootdb.yml
 - auth.yml
 - doots.yml
+- web/web.yml

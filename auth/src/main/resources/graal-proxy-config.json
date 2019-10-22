@@ -1,0 +1,8 @@
+[
+  ["dev.ajaffie.dootr.auth.services.EmailService"],
+  ["dev.ajaffie.dootr.auth.services.UserService"],
+  ["dev.ajaffie.dootr.auth.services.JWTService"],
+  ["io.quarkus.mailer.ReactiveMailer"],
+  ["java.security.interfaces.RSAPrivateKey"],
+  ["java.security.interfaces.RSAPublicKey"]
+]

@@ -22,4 +22,17 @@ public class QueryDto {
             this.limit = Math.min(limit, 100);
         }
     }
+    @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
+    public QueryDto(@JsonProperty("timestamp") Float timestamp, @JsonProperty("limit") Integer limit) {
+        if (timestamp == null || timestamp > Instant.now().getEpochSecond()) {
+            this.timestamp = Instant.now().getEpochSecond();
+        } else {
+            this.timestamp = timestamp.longValue();
+        }
+        if (limit == null || limit < 0) {
+            this.limit = 25;
+        } else {
+            this.limit = Math.min(limit, 100);
+        }
+    }
 }

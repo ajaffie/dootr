@@ -9,7 +9,7 @@ public class BasicResponse {
 
     public final String error;
 
-    private BasicResponse(boolean isOk, String e) {
+    public BasicResponse(boolean isOk, String e) {
         if (isOk) {
             this.status = "OK";
             this.error = null;
@@ -20,7 +20,7 @@ public class BasicResponse {
     }
 
     public static Response error(String msg) {
-        return Response.status(500).entity(new BasicResponse(false, msg)).build();
+        return Response.ok().entity(new BasicResponse(false, msg)).build();
     }
 
     public static Response ok() {

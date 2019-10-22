@@ -40,7 +40,7 @@ public class UserController {
     @POST
     @Path("/verify")
     public CompletionStage<Response> verifyUser(@RequestBody VerifyUserDto verifyRequest) {
-        logger.info("Verify user request received for '{}' with code '{}'", verifyRequest.email, verifyRequest.key);
+        logger.info("Verify user request received for {} with code {}", verifyRequest.email, verifyRequest.key);
         return userService.verifyUser(verifyRequest);
     }
 

@@ -13,9 +13,7 @@ function App() {
   const [limit, setLimit] = useState(25);
 
   const getItem = id => {
-    fetch(`http://${backend}/item/${id}`, {
-      mode: "no-cors",
-    })
+    fetch(`${backend}/item/${id}`)
       .then(r => r.json())
       .then(json => {
         if (json.status === "OK") {
@@ -32,9 +30,12 @@ function App() {
       setOutput("Please enter an email, username and password.");
       return;
     }
-    fetch(`http://${backend}/adduser`, {
+    fetch(`${backend}/adduser`, {
       method: "POST",
-      data: { email, username, password },
+      body: JSON.stringify({ email, username, password }),
+      headers: [
+        ["content-type", "application/json"],
+      ],
     })
       .then(json => {
         if (json.status === "OK") {
@@ -51,9 +52,12 @@ function App() {
       setOutput("Please input an email and key.");
       return;
     }
-    fetch(`http://${backend}/verify`, {
+    fetch(`${backend}/verify`, {
       method: "POST",
-      data: { email, key },
+      body: JSON.stringify({ email, key }),
+      headers: [
+        ["content-type", "application/json"],
+      ],
     })
       .then(json => {
         if (json.status === "OK") {
@@ -69,9 +73,12 @@ function App() {
       setOutput("Please input an email.");
       return;
     }
-    fetch(`http://${backend}/resendVerification`, {
+    fetch(`${backend}/resendVerification`, {
       method: "POST",
-      data: { email },
+      body: JSON.stringify({ email }),
+      headers: [
+        ["content-type", "application/json"],
+      ],
     })
       .then(json => {
         if (json.status === "OK") {
@@ -88,10 +95,13 @@ function App() {
       setOutput("Please input a username and password.");
       return;
     }
-    fetch(`http://${backend}/login`, {
+    fetch(`${backend}/login`, {
       method: "POST",
       credentials: "include",
-      data: { username, password },
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({ username, password }),
     })
       .then(res => res.json())
       .then(json => {
@@ -104,13 +114,16 @@ function App() {
       .catch(setOutput);
   }
   const createDoot = content => {
-    fetch(`http://${backend}/additem`, {
+    fetch(`${backend}/additem`, {
       method: "POST",
       credentials: "include",
-      data: {
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({
         childType: null,
         content
-      }
+      })
     })
       .then(r => r.json())
       .then(json => {
@@ -127,9 +140,12 @@ function App() {
     if (ts == 0) {
       ts = null;
     }
-    fetch(`http://${backend}/search`, {
+    fetch(`${backend}/search`, {
       method: "POST",
-      data: { timestamp: ts, limit: lim },
+      body: JSON.stringify({ timestamp: ts, limit: lim }),
+      headers: [
+        ["content-type", "application/json"],
+      ],
     })
       .then(r => r.json())
       .then(json => {
@@ -140,6 +156,25 @@ function App() {
         }
       })
       .catch(err => setOutput("Failed: " + err));
+  }
+
+  const logout = () => {
+    fetch(`${backend}/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: [
+        ["content-type", "application/json"],
+      ],
+    })
+      .then(res => res.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput("Logged out successfully.");
+        } else {
+          setOutput("Error: " + json.error);
+        }
+      })
+      .catch(setOutput);
   }
 
   return (

@@ -18,7 +18,7 @@ public class Email {
                 "Hello {0},\n" +
                         "Welcome to Dootr!\n\n" +
                         "You are receiving this email because a new account has been created with this email address ({1}).\n" +
-                        "If you made an account, great! Go to dootr.ajaffie.dev/verify and enter the below code (between the < and >):\n" +
+                        "If you made an account, great! Go to dootr.ajaffie.dev/verify and enter the below code (between the brackets):\n" +
                         "Your validation key: <{2}>\n\n" +
                         "If you did not make an account with us, fear not! Whoever created an account with your email address will " +
                         "be locked out unless you enter the above code, so they can't masquerade around with your email :)\n\n" +
