@@ -1,11 +1,7 @@
 package dev.ajaffie.dootr.doots.services;
 
-import dev.ajaffie.dootr.doots.domain.AddItemDto;
-import dev.ajaffie.dootr.doots.domain.Doot;
-import dev.ajaffie.dootr.doots.domain.DootException;
-import dev.ajaffie.dootr.doots.domain.User;
+import dev.ajaffie.dootr.doots.domain.*;
 import io.vertx.axle.mysqlclient.MySQLPool;
-import io.vertx.axle.sqlclient.RowIterator;
 import io.vertx.axle.sqlclient.RowSet;
 import io.vertx.axle.sqlclient.Tuple;
 import org.slf4j.Logger;
@@ -83,16 +79,6 @@ public class DootServiceImpl implements DootService {
     @PostConstruct
     public void setup() {
         // run database migrations
-        client.query(
-                "CREATE TABLE IF NOT EXISTS Doots (\n" +
-                        "Id BIGINT(19) UNSIGNED PRIMARY KEY AUTO_INCREMENT,\n" +
-                        "Username MEDIUMTEXT NOT NULL,\n" +
-                        "UserId INT NOT NULL,\n" +
-                        "Likes BIGINT(19) UNSIGNED NOT NULL DEFAULT 0,\n" +
-                        "Retweeted BIGINT(19) UNSIGNED NOT NULL DEFAULT 0,\n" +
-                        "Content TEXT(280) NOT NULL,\n" +
-                        "`Timestamp` BIGINT(19) UNSIGNED NOT NULL" +
-                        ");"
-        ).toCompletableFuture().join();
+        Migrations.runMigrations(client);
     }
 }

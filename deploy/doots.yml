@@ -80,3 +80,7 @@ spec:
         backend:
           serviceName: doots
           servicePort: http
+      - path: /search
+        backend:
+          serviceName: doots
+          servicePort: http
