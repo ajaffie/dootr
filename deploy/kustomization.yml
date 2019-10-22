@@ -4,6 +4,11 @@ secretGenerator:
   - username=auth
   - password=i9&Q#r987bse8fnsd
   - root=jkwcynuiwagrcuk4yb4kuwcg3uyfb4xwk4nuhbn8ocr7nh32nofd
+- name: dootdb-creds
+  literals:
+  - username=doots
+  - password=dsfjbw4ngru3bxeb32n
+  - root=xq3874gfnaksbdadf8b7sf
 - name: mailer-dkim-secret
   files:
   - mailer/mail.private
@@ -15,4 +20,6 @@ resources:
 - prereqs/nginx-ingress.yml
 - authdb/authdb.yml
 - mailer/mailer.yml
+- dootdb.yml
 - auth.yml
+- doots.yml
