@@ -1,3 +1,0 @@
-mail._domainkey	IN	TXT	( "v=DKIM1; h=sha256; k=rsa; "
-	  "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4Ii1WyBLwpZzdE5PKPOOtLgBX8cXfYZEOKlfiOTPyLS9ErsahTsw2ggEaoNIRmSvCzh22Y7xgH+r1ZRIwpubtbOD5gFdppjU89P/GRXUX6WUhI1ZFP8MzTC5bM1eMmpF1P2KwST4aCDU3H6HE+Kk0WMOOGw28isysMTGpVuIB0ujZrebfSNB2teKZ2zA+4RwGSeV5JlDgQXLZv"
-	  "yImqJRdBJmhh/RbdJfKntpz8dhD24L+YWd51PmJfzQ8tmWJbxVon+anhKfpnZAEeSedV2o5iHAKr4V5i/crL/srZBjFdGwnJ416XCQ0TqKe8GruJxRcvUPBgvdOHVbeheLARgtiwIDAQAB" )  ; ----- DKIM key mail for dootr.ajaffie.dev
