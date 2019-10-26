@@ -9,12 +9,9 @@ secretGenerator:
   - username=doots
   - password=dsfjbw4ngru3bxeb32n
   - root=xq3874gfnaksbdadf8b7sf
-- name: mailer-dkim-secret
-  files:
-  - mailer/mail.private
 - name: mailer-creds
   literals:
-  - creds=auth:iej4g8he7NISGfiges3
+  - apikey=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
 resources:
 - prereqs/storage-classes.yml
 - prereqs/nginx-ingress.yml

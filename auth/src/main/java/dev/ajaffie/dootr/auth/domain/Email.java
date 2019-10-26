@@ -6,11 +6,13 @@ public class Email {
     public final String dest;
     public final String subject;
     public final String content;
+    public final String destName;
 
-    public Email(String dest, String subject, String content) {
+    public Email(String dest, String destName, String subject, String content) {
         this.dest = dest;
         this.subject = subject;
         this.content = content;
+        this.destName = destName;
     }
 
     public static Email verificationEmail(User user) {
@@ -25,8 +27,7 @@ public class Email {
                         "Happy Dooting,\n" +
                         "Andrew";
         String content = MessageFormat.format(template, user.getUsername(), user.getEmail(), user.getVerifyCode());
-        String dest = MessageFormat.format("{0} <{1}>", user.getUsername(), user.getEmail());
         String subject = MessageFormat.format("Welcome to Dootr, {0}!", user.getUsername());
-        return new Email(dest, subject, content);
+        return new Email(user.getEmail(), user.getUsername(), subject, content);
     }
 }
