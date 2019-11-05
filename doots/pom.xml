@@ -81,6 +81,15 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-reactive-streams-operators</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jooq</groupId>
+      <artifactId>jooq</artifactId>
+      <version>3.12.3</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

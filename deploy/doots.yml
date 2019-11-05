@@ -84,6 +84,15 @@ spec:
         backend:
           serviceName: doots
           servicePort: http
+      - path: /user/.*
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /follow
+        backend:
+          serviceName: doots
+          servicePort: http
+
   - host: dootr.ajaffie.dev
     http:
       paths:
@@ -96,6 +105,14 @@ spec:
           serviceName: doots
           servicePort: http
       - path: /search
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /user/.*
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /follow
         backend:
           serviceName: doots
           servicePort: http

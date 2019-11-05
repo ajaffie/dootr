@@ -3,9 +3,13 @@ package dev.ajaffie.dootr.doots.services;
 import dev.ajaffie.dootr.doots.domain.Doot;
 import dev.ajaffie.dootr.doots.domain.Migrations;
 import dev.ajaffie.dootr.doots.domain.QueryDto;
+import dev.ajaffie.dootr.doots.domain.User;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.Row;
 import io.vertx.axle.sqlclient.Tuple;
+import org.jooq.*;
+import org.jooq.conf.ParamType;
+import org.jooq.impl.DSL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,15 +38,31 @@ public class SearchServiceImpl implements SearchService {
     }
 
     @Override
-    public CompletionStage<Collection<Doot>> search(QueryDto query) {
-        return client.preparedQuery(
-                "SELECT Id, Username, UserId, Likes, Retweeted, Content, `Timestamp`\n" +
-                        "FROM Doots\n" +
-                        "WHERE `Timestamp` < ?\n" +
-                        "ORDER BY `Timestamp` DESC\n" +
-                        "LIMIT ?",
-                Tuple.of(query.timestamp, query.limit)
-        )
+    public CompletionStage<Collection<Doot>> search(QueryDto query, User user) {
+        if (query == null) {
+            query = new QueryDto();
+        }
+        logger.info("Running query with ts {} following {} username {} q {}...", query.timestamp, query.following, query.username, query.query);
+         Select builder = DSL.using(SQLDialect.MARIADB)
+                .select()
+                .from("Doots");
+        Condition condition = DSL.condition("`Timestamp` < ?", query.timestamp);
+         if (query.username != null) {
+            condition = condition.and("Username = ?", query.username);
+         }
+         if (query.following && user != null) {
+             condition = condition.and("Username IN (SELECT FollowedName FROM Follows WHERE FollowerName = ?)", user.username);
+         }
+         if (query.query != null) {
+             condition = condition.and("MATCH(Content) AGAINST(?)", query.query);
+         }
+         builder = ((SelectFromStep)builder).where(condition)
+                 .orderBy(DSL.field("Timestamp").desc())
+                 .limit(query.limit);
+         String sql = builder.getSQL(ParamType.INLINED);
+         logger.info("Generated SQL for query: {}", sql);
+
+        return client.query(sql)
                 .thenApply(rs -> {
                     List<Doot> doots = new ArrayList<>(rs.size());
                     for (Row r : rs) {

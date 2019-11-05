@@ -147,6 +147,17 @@ public class UserServiceImpl implements UserService {
         return CompletableFuture.completedFuture(BasicResponse.okWithAuth(null));
     }
 
+    @Override
+    public CompletionStage<Response> getUser(String username) {
+        return getByUsername(username)
+                .thenApply(user -> {
+                    if (user == null) {
+                        return Response.status(Response.Status.NOT_FOUND).build();
+                    }
+                    return Response.ok(new UserDto(user.getId(), user.getUsername(), user.getEmail())).build();
+                });
+    }
+
     private CompletionStage<User> getByEmail(String email) {
         return client.preparedQuery("SELECT * FROM Users WHERE Email = ?", Tuple.of(email))
                 .thenApply(RowSet::iterator)

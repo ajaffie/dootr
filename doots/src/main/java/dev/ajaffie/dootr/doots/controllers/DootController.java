@@ -1,5 +1,8 @@
 package dev.ajaffie.dootr.doots.controllers;
 
+import com.fasterxml.jackson.core.FormatFeature;
+import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ajaffie.dootr.doots.domain.*;
 import dev.ajaffie.dootr.doots.services.DootService;
 import io.smallrye.jwt.auth.principal.JWTAuthContextInfo;
@@ -7,12 +10,17 @@ import io.smallrye.jwt.auth.principal.JWTCallerPrincipalFactory;
 import io.smallrye.jwt.auth.principal.ParseException;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -21,10 +29,11 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 @Path("/")
 @ApplicationScoped
 @Produces(APPLICATION_JSON)
-@Consumes(APPLICATION_JSON)
+@Consumes(APPLICATION_JSON + ";charset=utf-8")
 public class DootController {
 
     private DootService dootService;
+    private Logger logger;
 
     private JWTAuthContextInfo jwtAuthContextInfo;
     private JWTCallerPrincipalFactory jwtFactory;
@@ -34,6 +43,7 @@ public class DootController {
         this.dootService = dootService;
         this.jwtAuthContextInfo = jwtAuthContextInfo;
         this.jwtFactory = JWTCallerPrincipalFactory.instance();
+        this.logger = LoggerFactory.getLogger(DootController.class);
     }
 
     @POST
@@ -46,12 +56,16 @@ public class DootController {
         if (addItemDto.content == null || addItemDto.content.length() == 0) {
             return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("No content supplied.")).build());
         }
-        if (addItemDto.content.length() > 280) {
+        if (addItemDto.content.length() > 4096) {
             return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("Doot is too long.")).build());
         }
         return dootService.createDoot(addItemDto, user)
-                .thenApply(id -> {
+                .handle((id, ex) -> {
+                    if (ex != null) {
+                        logger.error("Error creating doot: {}", ex.getMessage());
+                    }
                     if (id == null) {
+                        logger.error("Failed to create doot {} for user {}", addItemDto.content, user.username);
                         return Response.status(Response.Status.OK).entity(new ErrorDto("Doot not created. Try again later.")).build();
                     } else {
                         return Response.ok(new OkWithIdDto(id)).build();
@@ -68,6 +82,25 @@ public class DootController {
                         return Response.status(Response.Status.OK).entity(new ErrorDto("Doot not found.")).build();
                     }
                     return Response.ok(new OkWithItemDto(ItemDto.from(doot))).build();
+                });
+    }
+
+    @DELETE
+    @Path("/item/{id}")
+    public CompletionStage<Response> deleteDoot(@CookieParam("session") Cookie sessionCookie, @PathParam("id") long id) {
+        User user = getUserFromCookie(sessionCookie);
+        if (user == null) {
+            return CompletableFuture.completedFuture(Response.status(Response.Status.UNAUTHORIZED).entity(new ErrorDto("User is not logged in.")).build());
+        }
+        return dootService.deleteDoot(id, user)
+                .thenApply(s -> {
+                    if (s == null) {
+                        return Response.status(Response.Status.NOT_FOUND).build();
+                    } else if (s) {
+                        return Response.ok().build();
+                    } else {
+                        return Response.status(Response.Status.UNAUTHORIZED).build();
+                    }
                 });
     }
 

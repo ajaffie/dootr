@@ -16,15 +16,32 @@ public class Migrations {
                             "Id BIGINT(19) UNSIGNED PRIMARY KEY AUTO_INCREMENT,\n" +
                             "Username MEDIUMTEXT NOT NULL,\n" +
                             "UserId INT NOT NULL,\n" +
-                            "Likes BIGINT(19) UNSIGNED NOT NULL DEFAULT 0,\n" +
-                            "Retweeted BIGINT(19) UNSIGNED NOT NULL DEFAULT 0,\n" +
-                            "Content TEXT(280) NOT NULL,\n" +
-                            "`Timestamp` BIGINT(19) UNSIGNED NOT NULL" +
+                            "Parent BIGINT(19) UNSIGNED,\n" +
+                            "ChildType TEXT(30),\n" +
+                            "Content TEXT(4096) CHARACTER SET utf8mb4 NOT NULL,\n" +
+                            "`Timestamp` BIGINT(19) UNSIGNED NOT NULL,\n" +
+                            "FULLTEXT(Content)" +
                             ");"
             )
                     .thenCompose(rs -> client.query(
                             "CREATE INDEX IF NOT EXISTS time_index " +
                                     "ON Doots (`Timestamp` DESC)"
+                    ))
+                    .thenCompose(rs -> client.query(
+                            "CREATE TABLE IF NOT EXISTS Likes (\n" +
+                                    "DootId BIGINT(19) UNSIGNED,\n" +
+                                    "UserId BIGINT(19) UNSIGNED,\n" +
+                                    "Username MEDIUMTEXT,\n" +
+                                    "PRIMARY KEY (DootId, UserId),\n" +
+                                    "FOREIGN KEY (DootId) REFERENCES Doots(Id) ON DELETE CASCADE\n" +
+                                    ");"
+                    ))
+                    .thenCompose(rs -> client.query(
+                            "CREATE TABLE IF NOT EXISTS Follows (\n" +
+                                    "FollowedName MEDIUMTEXT,\n" +
+                                    "FollowerName MEDIUMTEXT,\n" +
+                                    "PRIMARY KEY (FollowedName(500), FollowerName(500))" +
+                                    ");"
                     ))
                     .toCompletableFuture().join();
             isMigrationDone = true;

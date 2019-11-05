@@ -18,4 +18,6 @@ public interface UserService {
     CompletionStage<Response> login(UserCreds creds);
 
     CompletionStage<Response> logout();
+
+    CompletionStage<Response> getUser(String username);
 }

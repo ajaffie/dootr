@@ -1,6 +1,7 @@
 package dev.ajaffie.dootr.auth.controllers;
 
 import dev.ajaffie.dootr.auth.domain.AddUserDto;
+import dev.ajaffie.dootr.auth.domain.BasicResponse;
 import dev.ajaffie.dootr.auth.domain.UserCreds;
 import dev.ajaffie.dootr.auth.domain.VerifyUserDto;
 import dev.ajaffie.dootr.auth.services.JWTService;
@@ -13,6 +14,7 @@ import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 @Path("/")
@@ -69,5 +71,13 @@ public class UserController {
         return userService.logout();
     }
 
+    @GET
+    @Path("/getuser")
+    public CompletionStage<Response> getUser(@QueryParam("username") String username) {
+        if (username == null) {
+            return CompletableFuture.completedFuture(BasicResponse.error("Supply a username."));
+        }
+        return userService.getUser(username);
+    }
 
 }

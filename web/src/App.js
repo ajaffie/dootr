@@ -9,7 +9,7 @@ function App() {
   const [password, setPassword] = useState();
   const [verifyKey, setVerifyKey] = useState();
   const [itemId, setItemId] = useState(1);
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(Date.now()/1000);
   const [limit, setLimit] = useState(25);
 
   const getItem = id => {
@@ -135,6 +135,21 @@ function App() {
       })
       .catch(setOutput);
   }
+  const deleteDoot = id => {
+    fetch(`${backend}/item/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    }).then(resp => {
+        if (resp.ok) {
+          setOutput(`Doot ${id} deleted successfully.`);
+        } else if (resp.status === 404) {
+          setOutput(`Doot does not exist.`);
+        } else {
+          setOutput(`You do not own doot ${id}.`);
+        }
+      })
+      .catch(setOutput);
+  }
 
   const doSearch = (ts, lim) => {
     if (ts == 0) {
@@ -142,7 +157,7 @@ function App() {
     }
     fetch(`${backend}/search`, {
       method: "POST",
-      body: JSON.stringify({ timestamp: ts, limit: lim }),
+      body: JSON.stringify({ timestamp: ts, limit: lim, following: false }),
       headers: [
         ["content-type", "application/json"],
       ],
