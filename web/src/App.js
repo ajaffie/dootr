@@ -9,8 +9,13 @@ function App() {
   const [password, setPassword] = useState();
   const [verifyKey, setVerifyKey] = useState();
   const [itemId, setItemId] = useState(1);
-  const [timestamp, setTimestamp] = useState(Date.now()/1000);
+  const [timestamp, setTimestamp] = useState((Date.now() / 1000).toFixed(0));
   const [limit, setLimit] = useState(25);
+  const [followingToggle, setFollowingToggle] = useState(true);
+  const [searchUsername, setSearchUsername] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [followUsername, setFollowUsername] = useState("");
+  const [followLimit, setFollowLimit] = useState(50);
 
   const getItem = id => {
     fetch(`${backend}/item/${id}`)
@@ -140,27 +145,34 @@ function App() {
       method: "DELETE",
       credentials: "include",
     }).then(resp => {
-        if (resp.ok) {
-          setOutput(`Doot ${id} deleted successfully.`);
-        } else if (resp.status === 404) {
-          setOutput(`Doot does not exist.`);
-        } else {
-          setOutput(`You do not own doot ${id}.`);
-        }
-      })
+      if (resp.ok) {
+        setOutput(`Doot ${id} deleted successfully.`);
+      } else if (resp.status === 404) {
+        setOutput(`Doot does not exist.`);
+      } else {
+        setOutput(`You do not own doot ${id}.`);
+      }
+    })
       .catch(setOutput);
   }
 
-  const doSearch = (ts, lim) => {
+  const doSearch = (ts, lim, f, u, q) => {
     if (ts == 0) {
       ts = null;
     }
     fetch(`${backend}/search`, {
       method: "POST",
-      body: JSON.stringify({ timestamp: ts, limit: lim, following: false }),
+      body: JSON.stringify({
+        timestamp: ts,
+        limit: lim,
+        following: f,
+        q: q.length === 0 ? null : q,
+        username: u.length === 0 ? null : u,
+      }),
       headers: [
         ["content-type", "application/json"],
       ],
+      credentials: "include",
     })
       .then(r => r.json())
       .then(json => {
@@ -190,6 +202,96 @@ function App() {
         }
       })
       .catch(setOutput);
+  }
+  const follow = (u, fOrNot) => {
+    if (u.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/follow`, {
+      method: "POST",
+      credentials: "include",
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({
+        username: u,
+        follow: fOrNot,
+      })
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(`You are now${!fOrNot ? " not" : ""} following ${u}.`);
+        } else {
+          setOutput(json.error);
+        }
+      })
+      .catch(setOutput);
+  }
+  const getProfile = u => {
+    if (u.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/user/${u}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(JSON.stringify(json.user, null, 2));
+        } else {
+          setOutput("Failed: " + json.error);
+        }
+      })
+      .catch(err => setOutput("Failed: " + err))
+  }
+  const getPosts = (u, lim) => {
+    if (u.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/user/${u}/posts?limit=${lim}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(JSON.stringify(json.items, null, 2));
+        } else {
+          setOutput("Failed: " + json.error);
+        }
+      })
+      .catch(err => setOutput("Failed: " + err))
+  }
+  const getFollowing = (u, lim) => {
+    if (u.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/user/${u}/following?limit=${lim}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(JSON.stringify(json.users, null, 2));
+        } else {
+          setOutput("Failed: " + json.error);
+        }
+      })
+      .catch(err => setOutput("Failed: " + err))
+  }
+  const getFollowers = (u, lim) => {
+    if (u.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/user/${u}/followers?limit=${lim}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(JSON.stringify(json.users, null, 2));
+        } else {
+          setOutput("Failed: " + json.error);
+        }
+      })
+      .catch(err => setOutput("Failed: " + err))
   }
 
   return (
@@ -228,6 +330,7 @@ function App() {
           <input name="itemID" type="number" onInput={e => setItemId(e.currentTarget.valueAsNumber)} value={itemId} />
           </label>
           <button onClick={() => getItem(itemId)}>Get Item</button>
+          <button onClick={() => deleteDoot(itemId)}>Delete Item</button>
         </div>
         <br />
         <div>
@@ -240,12 +343,47 @@ function App() {
             <input name="limit" type="number" onInput={e => setLimit(e.currentTarget.value)} value={limit} />
           </label>
           <br />
-          <button onClick={() => doSearch(timestamp, limit)}>Search</button>
+          <label for="followingToggle">
+            Following:
+            <input type="checkbox" name="followingToggle" onInput={e => setFollowingToggle(e.currentTarget.checked)} defaultChecked={true} />
+          </label>
+          <label for="searchQuery">
+            Query:
+            <input name="searchQuery" type="text" onInput={e => setSearchQuery(e.currentTarget.value)} value={searchQuery} />
+          </label>
+          <label for="searchUsername">
+            Username:
+            <input name="searchUsername" type="text" onInput={e => setSearchUsername(e.currentTarget.value)} value={searchUsername} />
+          </label>
+
+          <br />
+          <button onClick={() => doSearch(timestamp, limit, followingToggle, searchUsername, searchQuery)}>Search</button>
         </div>
         <br />
         <textarea value={output} onInput={e => setOutput(e.currentTarget.value)} />
         <br />
         <button onClick={() => createDoot(output)} >Create Doot from above box</button>
+        <br />
+        <br />
+        <div>
+          <label for="followUsername">
+            Username:
+            <input name="followUsername" type="text" onInput={e => setFollowUsername(e.currentTarget.value)} value={followUsername} />
+          </label>
+          <br />
+          <button onClick={() => follow(followUsername, true)}>Follow</button>
+          <button onClick={() => follow(followUsername, false)}>Unfollow</button>
+          <button onClick={() => getProfile(followUsername)}>Get Profile</button>
+          <br />
+          <button onClick={() => getPosts(followUsername, followLimit)}>Get Posts</button>
+          <button onClick={() => getFollowers(followUsername, followLimit)}>Get Followers</button>
+          <button onClick={() => getFollowing(followUsername, followLimit)}>Get Following</button>
+          <br />
+          <label for="followLimit">
+            Limit:
+            <input name="followLimit" type="number" onInput={e => setFollowLimit(e.currentTarget.value)} value={followLimit} />
+          </label>
+        </div>
       </header>
     </div>
   );
