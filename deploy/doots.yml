@@ -80,6 +80,10 @@ spec:
         backend:
           serviceName: doots
           servicePort: http
+      - path: /item/[0-9]*/like
+        backend:
+          serviceName: doots
+          servicePort: http
       - path: /search
         backend:
           serviceName: doots
@@ -101,6 +105,10 @@ spec:
           serviceName: doots
           servicePort: http
       - path: /item/[0-9]*
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /item/[0-9]*/like
         backend:
           serviceName: doots
           servicePort: http

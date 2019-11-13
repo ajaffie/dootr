@@ -22,21 +22,23 @@ public class DootServiceImpl implements DootService {
 
     private MySQLPool client;
     private Logger logger;
+    private SnowflakeGenerator snowflakeGenerator;
 
     @Inject
-    public DootServiceImpl(MySQLPool mySQLPool) {
+    public DootServiceImpl(MySQLPool mySQLPool, SnowflakeGenerator snowflakeGenerator) {
         this.client = mySQLPool;
         logger = LoggerFactory.getLogger(DootServiceImpl.class);
+        this.snowflakeGenerator = snowflakeGenerator;
     }
 
     @Override
     @Transactional
     public CompletionStage<Long> createDoot(AddItemDto addItemDto, User user) {
-        long time = Instant.now().getEpochSecond()-60L;
+        long time = Instant.now().getEpochSecond();
         logger.info("Inserting doot at timestamp {} from user {}", time, user.username);
-
-        return client.preparedQuery("INSERT INTO Doots (Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?);",
-                Tuple.of(user.username, user.userId, addItemDto.content, time)
+        long newId = snowflakeGenerator.nextId();
+        return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?, ?);",
+                Tuple.of(newId, user.username, user.userId, addItemDto.content, time)
         )
                 .thenApply(rs -> {
                     if (rs.rowCount() == 1) {
@@ -44,21 +46,12 @@ public class DootServiceImpl implements DootService {
                     }
                     throw new DootException("There was an error creating the doot.");
                 })
-                .thenCompose(s -> client.query("SELECT LAST_INSERT_ID();"))
-                .thenApply(RowSet::iterator)
-                .thenApply(it -> {
-                    if (it.hasNext()) {
-                        return it.next();
-                    }
-                    throw new DootException("There was an error creating the doot.");
-                })
-                .thenApply(r -> r.getLong(0))
-                .handle((id, err) -> {
+                .handle((success, err) -> {
                     if (err != null) {
                         logger.error("Error creating doot: " + err.getMessage());
                     }
-                    logger.info("Doot id {} created for user {}", id, user.username);
-                    return id;
+                    logger.info("Doot id {} created for user {}", newId, user.username);
+                    return newId;
                 });
 
     }
@@ -73,6 +66,7 @@ public class DootServiceImpl implements DootService {
                     }
                     return null;
                 })
+                .thenCompose(this::addLikes)
                 .handle((d, err) -> {
                     if (err != null || d == null) {
                         logger.error("There was an error loading the doot with id {}: {}", id, err != null ? err.getMessage() : "The doot does not exist.");
@@ -130,12 +124,38 @@ public class DootServiceImpl implements DootService {
                 });
     }
 
+    @Override
+    public CompletionStage<Boolean> likeDoot(long id, User user, boolean like) {
+        if (like) {
+            return client.preparedQuery("INSERT IGNORE INTO Likes (DootId, UserId, Username) VALUES (?, ?, ?);",
+                    Tuple.of(id, user.userId, user.username))
+                    .handle((rs, err) -> {
+                        if (err != null) {
+                            logger.error("Error liking doot: {}", err.getMessage());
+                            return false;
+                        }
+                        return true;
+                    });
+        } else {
+            return client.preparedQuery("DELETE FROM Likes WHERE DootId = ? AND UserId = ? LIMIT 1;",
+                    Tuple.of(id, user.userId))
+                    .handle((rs, err) -> {
+                        if (err != null) {
+                            logger.error("Error unliking doot: {}", err.getMessage());
+                            return false;
+                        }
+                        return true;
+                    });
+        }
+    }
+
+
     public CompletionStage<Doot> addLikes(Doot doot) {
-        return client.preparedQuery("SELECT * FROM likes_view WHERE DootId = ?;", Tuple.of(doot.id))
+        return client.preparedQuery("SELECT COUNT(*) FROM Likes WHERE DootId = ?;", Tuple.of(doot.id))
                 .thenApply(RowSet::iterator)
                 .thenApply(it -> {
                     if (it.hasNext()) {
-                        return doot.withLikes(it.next().getLong("Likes"));
+                        return doot.withLikes(it.next().getLong(0));
                     }
                     return doot.withLikes(0);
                 })

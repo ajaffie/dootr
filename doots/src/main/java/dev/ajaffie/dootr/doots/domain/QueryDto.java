@@ -13,7 +13,7 @@ public class QueryDto {
     public final boolean following;
 
     public QueryDto() {
-        this(Instant.now().getEpochSecond()-60L, null, null, null, true);
+        this(Instant.now().getEpochSecond(), null, null, null, true);
     }
 
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
@@ -26,7 +26,7 @@ public class QueryDto {
         this.username = username;
         this.following = following == null ? true : following;
         if (timestamp == null) {
-            this.timestamp = Instant.now().getEpochSecond()-60L;
+            this.timestamp = Instant.now().getEpochSecond();
         } else {
             this.timestamp = timestamp;
         }

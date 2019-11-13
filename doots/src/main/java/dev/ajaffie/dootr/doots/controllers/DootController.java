@@ -75,8 +75,14 @@ public class DootController {
 
     @GET
     @Path("/item/{id}")
-    public CompletionStage<Response> getDoot(@PathParam("id") long id) {
-        return dootService.getDoot(id)
+    public CompletionStage<Response> getDoot(@PathParam("id") String id) {
+        long longID;
+        try {
+            longID = Long.parseLong(id);
+        } catch (NumberFormatException nfe) {
+            return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("Invalid id.")).build());
+        }
+        return dootService.getDoot(longID)
                 .thenApply(doot -> {
                     if (doot == null) {
                         return Response.status(Response.Status.OK).entity(new ErrorDto("Doot not found.")).build();
@@ -100,6 +106,23 @@ public class DootController {
                         return Response.ok().build();
                     } else {
                         return Response.status(Response.Status.UNAUTHORIZED).build();
+                    }
+                });
+    }
+
+    @POST
+    @Path("/item/{id}/like")
+    public CompletionStage<Response> likeDoot(@CookieParam("session") Cookie sessionCookie, @PathParam("id") long id, @RequestBody LikeDootDto likeDootDto) {
+        User user = getUserFromCookie(sessionCookie);
+        if (user == null) {
+            return CompletableFuture.completedFuture(Response.status(Response.Status.UNAUTHORIZED).entity(new ErrorDto("User is not logged in.")).build());
+        }
+        return dootService.likeDoot(id, user, likeDootDto.like)
+                .thenApply(s -> {
+                    if (s) {
+                        return Response.ok(new OkDto()).build();
+                    } else {
+                        return Response.ok(new ErrorDto("There was an error liking/unliking the doot.")).build();
                     }
                 });
     }

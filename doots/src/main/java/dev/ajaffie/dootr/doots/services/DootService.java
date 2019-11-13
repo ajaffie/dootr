@@ -15,4 +15,8 @@ public interface DootService {
     CompletionStage<List<Long>> getDootsForUser(String username, int limit);
 
     CompletionStage<Boolean> deleteDoot(long id, User user);
+
+    CompletionStage<Boolean> likeDoot(long id, User user, boolean like);
+
+    CompletionStage<Doot> addLikes(Doot doot);
 }

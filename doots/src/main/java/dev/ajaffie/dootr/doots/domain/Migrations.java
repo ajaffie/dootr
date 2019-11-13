@@ -13,7 +13,7 @@ public class Migrations {
             }
             client.query(
                     "CREATE TABLE IF NOT EXISTS Doots (\n" +
-                            "Id BIGINT(19) UNSIGNED PRIMARY KEY AUTO_INCREMENT,\n" +
+                            "Id BIGINT(19) UNSIGNED PRIMARY KEY,\n" +
                             "Username MEDIUMTEXT NOT NULL,\n" +
                             "UserId INT NOT NULL,\n" +
                             "Parent BIGINT(19) UNSIGNED,\n" +

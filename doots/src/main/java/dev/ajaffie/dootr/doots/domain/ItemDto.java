@@ -31,22 +31,8 @@ public class ItemDto {
     }
 
     public static ItemDto from(Doot doot) {
-        return new ItemDto(doot.id, doot.username, new PropertiesDto(0),
-                doot.retweeted, doot.content, doot.timestamp, null, doot.parent, null);
-    }
-
-    public static ItemDto from(Row row) {
-        return new ItemDto(
-                row.getLong("id"),
-                row.getString("username"),
-                new PropertiesDto(0),
-                0,
-                row.getString("content"),
-                row.getLong("timestamp"),
-                null,
-                row.getLong("parent"),
-                null
-        );
+        return new ItemDto(doot.id, doot.username, new PropertiesDto(doot.property.likes),
+                doot.retweeted, doot.content, doot.timestamp, doot.childType, doot.parent, null);
     }
 
     static class PropertiesDto {

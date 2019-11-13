@@ -25,11 +25,13 @@ import java.util.concurrent.CompletionStage;
 public class SearchServiceImpl implements SearchService {
     private MySQLPool client;
     private Logger logger;
+    private DootService dootService;
 
     @Inject
-    public SearchServiceImpl(MySQLPool pool) {
+    public SearchServiceImpl(MySQLPool pool, DootService dootService) {
         this.logger = LoggerFactory.getLogger(SearchServiceImpl.class);
         this.client = pool;
+        this.dootService = dootService;
     }
 
     @PostConstruct
@@ -63,10 +65,10 @@ public class SearchServiceImpl implements SearchService {
          logger.info("Generated SQL for query: {}", sql);
 
         return client.query(sql)
-                .thenApply(rs -> {
+                .thenApplyAsync(rs -> {
                     List<Doot> doots = new ArrayList<>(rs.size());
                     for (Row r : rs) {
-                        doots.add(Doot.from(r));
+                        doots.add(dootService.addLikes(Doot.from(r)).toCompletableFuture().join());
                     }
                     return doots;
                 })

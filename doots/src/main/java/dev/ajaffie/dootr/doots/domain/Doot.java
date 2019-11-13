@@ -54,7 +54,7 @@ public class Doot {
     }
 
     public Doot withLikes(long likes) {
-        this.property.likes = likes;
+        this.property = new Properties(likes);
         return this;
     }
 

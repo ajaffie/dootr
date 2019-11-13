@@ -17,11 +17,4 @@ public class OkWithItemListDto extends OkDto {
         doots.forEach(doot -> items.add(ItemDto.from(doot)));
         return new OkWithItemListDto(items);
     }
-
-    public static OkWithItemListDto fromRows(Iterable<Row> rows) {
-        List<ItemDto> items = new LinkedList<>();
-        rows.forEach(row -> items.add(ItemDto.from(row)));
-        items.sort((a, b) -> (int)(a.timestamp - b.timestamp));
-        return new OkWithItemListDto(items);
-    }
 }

@@ -327,7 +327,7 @@ function App() {
         <div>
           <label for="itemID">
             Item ID:
-          <input name="itemID" type="number" onInput={e => setItemId(e.currentTarget.valueAsNumber)} value={itemId} />
+          <input name="itemID" type="text" onInput={e => setItemId(e.currentTarget.value)} value={itemId} />
           </label>
           <button onClick={() => getItem(itemId)}>Get Item</button>
           <button onClick={() => deleteDoot(itemId)}>Delete Item</button>
