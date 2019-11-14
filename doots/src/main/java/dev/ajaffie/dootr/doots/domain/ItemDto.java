@@ -15,7 +15,7 @@ public class ItemDto {
     public final String content;
     public final long timestamp;
     public final String childType;
-    public final Long parent;
+    public final String parent;
     public final List<Long> media;
 
     private ItemDto(long id, String username, PropertiesDto property, long retweeted, String content, long timestamp, String childType, Long parent, List<Long> media) {
@@ -26,7 +26,7 @@ public class ItemDto {
         this.content = content;
         this.timestamp = timestamp;
         this.childType = childType;
-        this.parent = parent;
+        this.parent = parent == null ? null : String.valueOf(parent);
         this.media = media == null ? new ArrayList<>() : media;
     }
 
