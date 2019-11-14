@@ -19,7 +19,9 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SearchServiceImpl implements SearchService {
@@ -67,10 +69,16 @@ public class SearchServiceImpl implements SearchService {
         return client.query(sql)
                 .thenApplyAsync(rs -> {
                     List<Doot> doots = new ArrayList<>(rs.size());
+
                     for (Row r : rs) {
-                        doots.add(dootService.addLikes(Doot.from(r)).toCompletableFuture().join());
+                        doots.add((Doot.from(r)));
                     }
-                    return doots;
+
+                    return doots.stream()
+                            .map(dootService::addLikes)
+                            .map(cs -> cs.thenCompose(dootService::addRetweets).toCompletableFuture())
+                            .map(CompletableFuture::join)
+                            .collect(Collectors.toList());
                 })
                 .handle((doots, err) -> {
                     if (err != null) {

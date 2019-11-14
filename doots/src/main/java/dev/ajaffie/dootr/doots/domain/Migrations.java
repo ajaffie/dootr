@@ -28,6 +28,10 @@ public class Migrations {
                                     "ON Doots (`Timestamp` DESC)"
                     ))
                     .thenCompose(rs -> client.query(
+                            "CREATE INDEX IF NOT EXISTS parent_index " +
+                                    "ON Doots (Parent DESC, ChildType(30))"
+                    ))
+                    .thenCompose(rs -> client.query(
                             "CREATE TABLE IF NOT EXISTS Likes (\n" +
                                     "DootId BIGINT(19) UNSIGNED,\n" +
                                     "UserId BIGINT(19) UNSIGNED,\n" +

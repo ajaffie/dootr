@@ -53,10 +53,10 @@ public class DootController {
         if (user == null) {
             return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("User is not logged in.")).build());
         }
-        if (addItemDto.content == null || addItemDto.content.length() == 0) {
+        if ((addItemDto.content == null || addItemDto.content.length() == 0) && !"retweet".equals(addItemDto.childType)) {
             return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("No content supplied.")).build());
         }
-        if (addItemDto.content.length() > 4096) {
+        if (addItemDto.content != null && addItemDto.content.length() > 4096) {
             return CompletableFuture.completedFuture(Response.status(Response.Status.OK).entity(new ErrorDto("Doot is too long.")).build());
         }
         return dootService.createDoot(addItemDto, user)

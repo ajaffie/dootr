@@ -1,5 +1,6 @@
 package dev.ajaffie.dootr.doots.services;
 
+import com.google.common.collect.ImmutableList;
 import dev.ajaffie.dootr.doots.domain.*;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.RowSet;
@@ -37,9 +38,34 @@ public class DootServiceImpl implements DootService {
         long time = Instant.now().getEpochSecond();
         logger.info("Inserting doot at timestamp {} from user {}", time, user.username);
         long newId = snowflakeGenerator.nextId();
-        return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?, ?);",
-                Tuple.of(newId, user.username, user.userId, addItemDto.content, time)
-        )
+        CompletableFuture<Doot> future;
+        if (addItemDto.childType != null) {
+            if (addItemDto.childType.equals("retweet") || addItemDto.childType.equals("reply")) {
+                future = getDoot(addItemDto.parent).toCompletableFuture();
+            } else {
+                logger.error("Invalid child type: {}", addItemDto.childType);
+                return null;
+            }
+        } else {
+            future = CompletableFuture.completedFuture(null);
+        }
+
+        return future.thenCompose(parent -> {
+            if (addItemDto.childType == null) {
+                return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?, ?);",
+                        Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, addItemDto.content, time))
+                );
+            }
+            String content;
+            if ("retweet".equals(addItemDto.childType)) {
+                content = parent.content;
+            } else {
+                content = addItemDto.content;
+            }
+            return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, ChildType, Parent, `Timestamp`) VALUES (?, ?, ?, ?, ?, ?, ?);",
+                    Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, content, addItemDto.childType, addItemDto.parent, time))
+            );
+        })
                 .thenApply(rs -> {
                     if (rs.rowCount() == 1) {
                         return true;
@@ -49,6 +75,7 @@ public class DootServiceImpl implements DootService {
                 .handle((success, err) -> {
                     if (err != null) {
                         logger.error("Error creating doot: " + err.getMessage());
+                        return null;
                     }
                     logger.info("Doot id {} created for user {}", newId, user.username);
                     return newId;
@@ -67,6 +94,7 @@ public class DootServiceImpl implements DootService {
                     return null;
                 })
                 .thenCompose(this::addLikes)
+                .thenCompose(this::addRetweets)
                 .handle((d, err) -> {
                     if (err != null || d == null) {
                         logger.error("There was an error loading the doot with id {}: {}", id, err != null ? err.getMessage() : "The doot does not exist.");
@@ -78,10 +106,10 @@ public class DootServiceImpl implements DootService {
     @Override
     public CompletionStage<List<Long>> getDootsForUser(String username, int limit) {
         return client.preparedQuery("SELECT Id\n" +
-                "FROM Doots\n" +
-                "WHERE Username = ?\n" +
-                "ORDER BY `Timestamp` DESC\n" +
-                "LIMIT ?",
+                        "FROM Doots\n" +
+                        "WHERE Username = ?\n" +
+                        "ORDER BY `Timestamp` DESC\n" +
+                        "LIMIT ?",
                 Tuple.of(username, limit))
                 .thenApply(RowSet::iterator)
                 .thenApply(it -> {
@@ -165,6 +193,26 @@ public class DootServiceImpl implements DootService {
                     }
                     logger.error("There was an error adding likes to doot '{}': {}", doot.id, ex.getMessage());
                     return doot;
+                });
+    }
+
+    @Override
+    public CompletionStage<Doot> addRetweets(Doot doot) {
+        return client.preparedQuery("SELECT COUNT(*) FROM Doots WHERE Parent = ? AND ChildType = 'retweet';",
+                Tuple.of(doot.id))
+                .thenApply(RowSet::iterator)
+                .thenApply(it -> {
+                    if (it.hasNext()) {
+                        return doot.withRetweets(it.next().getLong(0));
+                    }
+                    return doot.withRetweets(0);
+                })
+                .handle((d, err) -> {
+                    if (err != null) {
+                        logger.error("Error getting number of retweets: {}", err.getMessage());
+                        return doot;
+                    }
+                    return d;
                 });
     }
 

@@ -19,4 +19,6 @@ public interface DootService {
     CompletionStage<Boolean> likeDoot(long id, User user, boolean like);
 
     CompletionStage<Doot> addLikes(Doot doot);
+
+    CompletionStage<Doot> addRetweets(Doot doot);
 }
