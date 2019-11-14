@@ -4,9 +4,9 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @RegisterForReflection
 public class OkWithIdDto extends OkDto {
-    public final long id;
+    public final String id;
 
     public OkWithIdDto(long id) {
-        this.id = id;
+        this.id = String.valueOf(id);
     }
 }
