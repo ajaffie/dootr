@@ -140,6 +140,51 @@ function App() {
       })
       .catch(setOutput);
   }
+  const reply = (parent, content) => {
+    fetch(`${backend}/additem`, {
+      method: "POST",
+      credentials: "include",
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({
+        childType: "reply",
+        content,
+        parent,
+      })
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          getItem(json.id);
+        } else {
+          setOutput(json.error);
+        }
+      })
+      .catch(setOutput);
+  }
+  const retweet = id => {
+    fetch(`${backend}/additem`, {
+      method: "POST",
+      credentials: "include",
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({
+        childType: "retweet",
+        parent: id,
+      })
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          getItem(json.id);
+        } else {
+          setOutput(json.error);
+        }
+      })
+      .catch(setOutput);
+  }
   const deleteDoot = id => {
     fetch(`${backend}/item/${id}`, {
       method: "DELETE",
@@ -294,6 +339,32 @@ function App() {
       .catch(err => setOutput("Failed: " + err))
   }
 
+  const like = (id, lOrNot) => {
+    if (id.length === 0) {
+      setOutput("Please input a username.");
+      return;
+    }
+    fetch(`${backend}/item/${id}/like`, {
+      method: "POST",
+      credentials: "include",
+      headers: [
+        ["content-type", "application/json"],
+      ],
+      body: JSON.stringify({
+        like: lOrNot,
+      })
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.status === "OK") {
+          setOutput(`You now ${!lOrNot ? "dis" : ""}like ${id}.`);
+        } else {
+          setOutput(json.error);
+        }
+      })
+      .catch(setOutput);
+  }
+
   return (
     <div className="App">
       <header className="App-header">
@@ -329,8 +400,13 @@ function App() {
             Item ID:
           <input name="itemID" type="text" onInput={e => setItemId(e.currentTarget.value)} value={itemId} />
           </label>
+          <br />
           <button onClick={() => getItem(itemId)}>Get Item</button>
+          <button onClick={() => retweet(itemId)}>Retweet Item</button>
           <button onClick={() => deleteDoot(itemId)}>Delete Item</button>
+          <br />
+          <button onClick={() => like(itemId, true)}>Like Item</button>
+          <button onClick={() => like(itemId, false)}>Dislike Item</button>
         </div>
         <br />
         <div>
@@ -363,6 +439,7 @@ function App() {
         <textarea value={output} onInput={e => setOutput(e.currentTarget.value)} />
         <br />
         <button onClick={() => createDoot(output)} >Create Doot from above box</button>
+        <button onClick={() => reply(itemId, output)} >Create reply (parent from Item Id field above)</button>
         <br />
         <br />
         <div>
