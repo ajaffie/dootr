@@ -5,6 +5,7 @@ import io.vertx.axle.sqlclient.Row;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RegisterForReflection
 public class ItemDto {
@@ -16,7 +17,7 @@ public class ItemDto {
     public final long timestamp;
     public final String childType;
     public final String parent;
-    public final List<Long> media;
+    public final List<String> media;
 
     private ItemDto(long id, String username, PropertiesDto property, long retweeted, String content, long timestamp, String childType, Long parent, List<Long> media) {
         this.id = String.valueOf(id);
@@ -27,12 +28,12 @@ public class ItemDto {
         this.timestamp = timestamp;
         this.childType = childType;
         this.parent = parent == null ? null : String.valueOf(parent);
-        this.media = media == null ? new ArrayList<>() : media;
+        this.media = media == null ? new ArrayList<>() : media.stream().map(String::valueOf).collect(Collectors.toList());
     }
 
     public static ItemDto from(Doot doot) {
         return new ItemDto(doot.id, doot.username, new PropertiesDto(doot.property.likes),
-                doot.retweeted, doot.content, doot.timestamp, doot.childType, doot.parent, null);
+                doot.retweeted, doot.content, doot.timestamp, doot.childType, doot.parent, doot.media);
     }
 
     static class PropertiesDto {

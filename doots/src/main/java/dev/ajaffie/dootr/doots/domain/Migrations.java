@@ -4,7 +4,7 @@ import io.vertx.axle.mysqlclient.MySQLPool;
 
 public class Migrations {
     private static boolean isMigrationDone = false;
-    private static Object lock = new Object();
+    private static final Object lock = new Object();
 
     public static void runMigrations(MySQLPool client) {
         synchronized (lock) {
@@ -45,6 +45,13 @@ public class Migrations {
                                     "FollowedName MEDIUMTEXT,\n" +
                                     "FollowerName MEDIUMTEXT,\n" +
                                     "PRIMARY KEY (FollowedName(500), FollowerName(500))" +
+                                    ");"
+                    ))
+                    .thenCompose(rs -> client.query(
+                            "CREATE TABLE IF NOT EXISTS Media (\n" +
+                                    "DootId BIGINT(19) UNSIGNED,\n" +
+                                    "MediaId BIGINT(19) UNSIGNED,\n" +
+                                    "PRIMARY KEY (DootId, MediaId)" +
                                     ");"
                     ))
                     .toCompletableFuture().join();

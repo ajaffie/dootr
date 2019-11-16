@@ -3,6 +3,7 @@ package dev.ajaffie.dootr.doots.domain;
 import io.vertx.axle.sqlclient.Row;
 import io.vertx.axle.sqlclient.Tuple;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Doot {
@@ -15,6 +16,7 @@ public class Doot {
     public String childType;
     public String content;
     public long timestamp;
+    public List<Long> media;
 
     public Doot(long id, String username, long userId, Long likes, Long retweeted, String content, long timestamp, Long parent, String childType) {
         this.id = id;
@@ -46,6 +48,7 @@ public class Doot {
         created.childType = row.getString("ChildType");
         created.content = row.getString("Content");
         created.timestamp = row.getLong("Timestamp");
+        created.media = new ArrayList<>();
         return created;
     }
 
@@ -60,6 +63,11 @@ public class Doot {
 
     public Doot withRetweets(long retweets) {
         this.retweeted = retweets;
+        return this;
+    }
+
+    public Doot withMedia(List<Long> media) {
+        this.media = media;
         return this;
     }
 

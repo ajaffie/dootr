@@ -21,4 +21,6 @@ public interface DootService {
     CompletionStage<Doot> addLikes(Doot doot);
 
     CompletionStage<Doot> addRetweets(Doot doot);
+
+    CompletionStage<Doot> addMedia(Doot doot);
 }

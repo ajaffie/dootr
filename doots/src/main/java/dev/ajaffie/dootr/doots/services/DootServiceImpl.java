@@ -216,6 +216,26 @@ public class DootServiceImpl implements DootService {
                 });
     }
 
+    @Override
+    public CompletionStage<Doot> addMedia(Doot doot) {
+        return client.preparedQuery("SELECT MediaId FROM Media WHERE DootId = ?",
+                Tuple.of(doot.id))
+                .thenApply(rs -> {
+                    List<Long> media = new ArrayList<>(rs.rowCount());
+                    rs.iterator().forEachRemaining(row -> {
+                        media.add(row.getLong("MediaId"));
+                    });
+                    return media;
+                })
+                .handle((media, err) -> {
+                    if (err != null) {
+                        logger.error("Error adding media: {}", err.getMessage());
+                        return doot;
+                    }
+                    return doot.withMedia(media);
+                });
+    }
+
     @PostConstruct
     public void setup() {
         // run database migrations

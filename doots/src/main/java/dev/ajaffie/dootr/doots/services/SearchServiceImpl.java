@@ -49,20 +49,30 @@ public class SearchServiceImpl implements SearchService {
         logger.info("Running query with ts {} following {} username {} q {}...", query.timestamp, query.following, query.username, query.query);
          Select builder = DSL.using(SQLDialect.MARIADB)
                 .select()
-                .from("Doots");
-        Condition condition = DSL.condition("`Timestamp` < ?", query.timestamp);
+                .from("Doots d");
+        Condition condition = DSL.condition("d.`Timestamp` < ?", query.timestamp);
          if (query.username != null) {
-            condition = condition.and("Username = ?", query.username);
+            condition = condition.and("d.Username = ?", query.username);
          }
          if (query.following && user != null) {
-             condition = condition.and("Username IN (SELECT FollowedName FROM Follows WHERE FollowerName = ?)", user.username);
+             condition = condition.and("d.Username IN (SELECT FollowedName FROM Follows WHERE FollowerName = ?)", user.username);
+         }
+         if (query.hasMedia) {
+             condition = condition.and("d.Id IN (SELECT DootId FROM Media)");
+         }
+         if (query.replies && query.parent != null) {
+             condition = condition.and("d.Parent = ?", query.parent);
          }
          if (query.query != null) {
-             condition = condition.and("MATCH(Content) AGAINST(?)", query.query);
+             condition = condition.and("MATCH(d.Content) AGAINST(?)", query.query);
          }
-         builder = ((SelectFromStep)builder).where(condition)
-                 .orderBy(DSL.field("Timestamp").desc())
-                 .limit(query.limit);
+         builder = ((SelectFromStep)builder).where(condition);
+         if (query.rank.equals("time")){
+             builder = ((SelectWhereStep)builder).orderBy(DSL.field("d.Timestamp").desc());
+         } else {
+             builder = ((SelectWhereStep)builder).orderBy(DSL.field("((SELECT COUNT(*) FROM Likes WHERE DootId = d.Id) + (SELECT COUNT(*) FROM Doots d2 WHERE d.Id = d2.Parent AND d2.ChildType = 'retweet'))").desc());
+         }
+         builder = ((SelectOrderByStep)builder).limit(query.limit);
          String sql = builder.getSQL(ParamType.INLINED);
          logger.info("Generated SQL for query: {}", sql);
 
@@ -76,7 +86,8 @@ public class SearchServiceImpl implements SearchService {
 
                     return doots.stream()
                             .map(dootService::addLikes)
-                            .map(cs -> cs.thenCompose(dootService::addRetweets).toCompletableFuture())
+                            .map(cs -> cs.thenCompose(dootService::addRetweets))
+                            .map(cs -> cs.thenCompose(dootService::addMedia).toCompletableFuture())
                             .map(CompletableFuture::join)
                             .collect(Collectors.toList());
                 })

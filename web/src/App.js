@@ -12,7 +12,11 @@ function App() {
   const [timestamp, setTimestamp] = useState((Date.now() / 1000).toFixed(0));
   const [limit, setLimit] = useState(25);
   const [followingToggle, setFollowingToggle] = useState(true);
+  const [hasMediaToggle, setHasMediaToggle] = useState(false);
+  const [repliesToggle, setRepliesToggle] = useState(true);
+  const [interestToggle, setInterestToggle] = useState(true);
   const [searchUsername, setSearchUsername] = useState("");
+  const [searchParent, setSearchParent] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [followUsername, setFollowUsername] = useState("");
   const [followLimit, setFollowLimit] = useState(50);
@@ -201,7 +205,7 @@ function App() {
       .catch(setOutput);
   }
 
-  const doSearch = (ts, lim, f, u, q) => {
+  const doSearch = (ts, lim, f, u, q, hasMedia, parent, replies, byInterest) => {
     if (ts == 0) {
       ts = null;
     }
@@ -213,6 +217,10 @@ function App() {
         following: f,
         q: q.length === 0 ? null : q,
         username: u.length === 0 ? null : u,
+        parent: parent.length === 0 ? null : parent,
+        hasMedia,
+        replies,
+        rank: byInterest ? "interest" : "time",
       }),
       headers: [
         ["content-type", "application/json"],
@@ -423,6 +431,19 @@ function App() {
             Following:
             <input type="checkbox" name="followingToggle" onInput={e => setFollowingToggle(e.currentTarget.checked)} defaultChecked={true} />
           </label>
+          <label for="repliesToggle">
+            Replies:
+            <input type="checkbox" name="repliesToggle" onInput={e => setRepliesToggle(e.currentTarget.checked)} defaultChecked={true} />
+          </label>
+          <label for="hasMediaToggle">
+            Has Media:
+            <input type="checkbox" name="hasMediaToggle" onInput={e => setHasMediaToggle(e.currentTarget.checked)} defaultChecked={false} />
+          </label>
+          <label for="interestToggle">
+            Order by interest:
+            <input type="checkbox" name="interestToggle" onInput={e => setInterestToggle(e.currentTarget.checked)} defaultChecked={true} />
+          </label>
+          <br />
           <label for="searchQuery">
             Query:
             <input name="searchQuery" type="text" onInput={e => setSearchQuery(e.currentTarget.value)} value={searchQuery} />
@@ -431,9 +452,13 @@ function App() {
             Username:
             <input name="searchUsername" type="text" onInput={e => setSearchUsername(e.currentTarget.value)} value={searchUsername} />
           </label>
+          <label for="searchParent">
+            Parent:
+            <input name="searchParent" type="text" onInput={e => setSearchParent(e.currentTarget.value)} value={searchParent} />
+          </label>
 
           <br />
-          <button onClick={() => doSearch(timestamp, limit, followingToggle, searchUsername, searchQuery)}>Search</button>
+          <button onClick={() => doSearch(timestamp, limit, followingToggle, searchUsername, searchQuery, hasMediaToggle, searchParent, repliesToggle, interestToggle)}>Search</button>
         </div>
         <br />
         <textarea value={output} onInput={e => setOutput(e.currentTarget.value)} />
