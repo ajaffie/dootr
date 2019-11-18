@@ -24,12 +24,14 @@ public class DootServiceImpl implements DootService {
     private MySQLPool client;
     private Logger logger;
     private SnowflakeGenerator snowflakeGenerator;
+    private MediaService mediaService;
 
     @Inject
-    public DootServiceImpl(MySQLPool mySQLPool, SnowflakeGenerator snowflakeGenerator) {
+    public DootServiceImpl(MySQLPool mySQLPool, SnowflakeGenerator snowflakeGenerator, MediaService mediaService) {
         this.client = mySQLPool;
         logger = LoggerFactory.getLogger(DootServiceImpl.class);
         this.snowflakeGenerator = snowflakeGenerator;
+        this.mediaService = mediaService;
     }
 
     @Override
@@ -49,30 +51,47 @@ public class DootServiceImpl implements DootService {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-
-        return future.thenCompose(parent -> {
-            if (addItemDto.childType == null) {
-                return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?, ?);",
-                        Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, addItemDto.content, time))
-                );
-            }
-            String content;
-            if ("retweet".equals(addItemDto.childType)) {
-                content = parent.content;
+        return future.thenApplyAsync(parent -> {
+            if (addItemDto.media.stream()
+                    .map(mediaId -> mediaService.mediaBelongsToUser(mediaId, user).toCompletableFuture())
+                    .allMatch(CompletableFuture::join)) {
+                return parent;
             } else {
-                content = addItemDto.content;
+                throw new MediaException();
             }
-            return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, ChildType, Parent, `Timestamp`) VALUES (?, ?, ?, ?, ?, ?, ?);",
-                    Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, content, addItemDto.childType, addItemDto.parent, time))
-            );
         })
+                .thenCompose(parent -> {
+                    if (addItemDto.childType == null) {
+                        return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, `Timestamp`) VALUES (?, ?, ?, ?, ?);",
+                                Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, addItemDto.content, time))
+                        );
+                    }
+                    String content;
+                    if ("retweet".equals(addItemDto.childType)) {
+                        content = parent.content;
+                    } else {
+                        content = addItemDto.content;
+                    }
+                    return client.preparedQuery("INSERT INTO Doots (Id, Username, UserId, Content, ChildType, Parent, `Timestamp`) VALUES (?, ?, ?, ?, ?, ?, ?);",
+                            Tuple.tuple(ImmutableList.of(newId, user.username, user.userId, content, addItemDto.childType, addItemDto.parent, time))
+                    );
+                })
                 .thenApply(rs -> {
                     if (rs.rowCount() == 1) {
                         return true;
                     }
                     throw new DootException("There was an error creating the doot.");
                 })
+                .thenApplyAsync(success -> success && addItemDto.media.stream()
+                        .map(mediaId -> client.preparedQuery("INSERT INTO Media (DootId, MediaId) VALUES (?, ?);",
+                                Tuple.of(newId, mediaId)).toCompletableFuture())
+                        .allMatch(rowSetCompletableFuture -> rowSetCompletableFuture.join().rowCount() == 1)
+                )
                 .handle((success, err) -> {
+                    if (err instanceof MediaException) {
+                        logger.error("User does not own associated media.");
+                        return null;
+                    }
                     if (err != null) {
                         logger.error("Error creating doot: " + err.getMessage());
                         return null;
@@ -95,6 +114,7 @@ public class DootServiceImpl implements DootService {
                 })
                 .thenCompose(this::addLikes)
                 .thenCompose(this::addRetweets)
+                .thenCompose(this::addMedia)
                 .handle((d, err) -> {
                     if (err != null || d == null) {
                         logger.error("There was an error loading the doot with id {}: {}", id, err != null ? err.getMessage() : "The doot does not exist.");
@@ -127,6 +147,7 @@ public class DootServiceImpl implements DootService {
     }
 
     @Override
+    @Transactional
     public CompletionStage<Boolean> deleteDoot(long id, User user) {
         return getDoot(id)
                 .thenApply(doot -> {
@@ -153,6 +174,7 @@ public class DootServiceImpl implements DootService {
     }
 
     @Override
+    @Transactional
     public CompletionStage<Boolean> likeDoot(long id, User user, boolean like) {
         if (like) {
             return client.preparedQuery("INSERT IGNORE INTO Likes (DootId, UserId, Username) VALUES (?, ?, ?);",
@@ -221,7 +243,7 @@ public class DootServiceImpl implements DootService {
         return client.preparedQuery("SELECT MediaId FROM Media WHERE DootId = ?",
                 Tuple.of(doot.id))
                 .thenApply(rs -> {
-                    List<Long> media = new ArrayList<>(rs.rowCount());
+                    List<Long> media = new ArrayList<>();
                     rs.iterator().forEachRemaining(row -> {
                         media.add(row.getLong("MediaId"));
                     });
@@ -239,6 +261,6 @@ public class DootServiceImpl implements DootService {
     @PostConstruct
     public void setup() {
         // run database migrations
-        Migrations.runMigrations(client);
+        Migrations.runMigrations(client, CassandraClusterFactory.getSession());
     }
 }

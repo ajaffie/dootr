@@ -20,6 +20,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [followUsername, setFollowUsername] = useState("");
   const [followLimit, setFollowLimit] = useState(50);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaToDisplay, setMediaToDisplay] = useState([]);
 
   const getItem = id => {
     fetch(`${backend}/item/${id}`)
@@ -27,6 +29,7 @@ function App() {
       .then(json => {
         if (json.status === "OK") {
           setOutput(JSON.stringify(json.item, null, 2));
+          setMediaToDisplay(json.item.media.map(mediaId => <img src={`${backend}/media/${mediaId}`} key={mediaId} />))
         } else {
           setOutput("Failed: " + json.error);
         }
@@ -122,7 +125,36 @@ function App() {
       })
       .catch(setOutput);
   }
-  const createDoot = content => {
+
+  const uploadFiles = async files => {
+    return Promise.all(Array.from(files).map(f => {
+      const body = new FormData();
+      body.append("content", f);
+      return fetch(`${backend}/addmedia`, {
+        method: "POST",
+        credentials: "include",
+        body
+      })
+      .then(resp => resp.json())
+      .then(respJson => {
+        if (respJson.status === "OK") {
+          return respJson.id;
+        } else {
+          throw new Error("Failed to upload media: " + respJson.error)
+        }
+      })
+      .catch(err => {
+        setOutput(err.message);
+        return -1;
+      });
+    }));
+  }
+
+  const createDoot = async (content, mediaFiles) => {
+    const media = await uploadFiles(mediaFiles);
+    if (media.some(id => id === -1)) {
+      return;
+    }
     fetch(`${backend}/additem`, {
       method: "POST",
       credentials: "include",
@@ -131,7 +163,8 @@ function App() {
       ],
       body: JSON.stringify({
         childType: null,
-        content
+        content,
+        media
       })
     })
       .then(r => r.json())
@@ -144,7 +177,11 @@ function App() {
       })
       .catch(setOutput);
   }
-  const reply = (parent, content) => {
+  const reply = async (parent, content, mediaFiles) => {
+    const media = await uploadFiles(mediaFiles);
+    if (media.some(id => id === -1)) {
+      return;
+    }
     fetch(`${backend}/additem`, {
       method: "POST",
       credentials: "include",
@@ -155,6 +192,7 @@ function App() {
         childType: "reply",
         content,
         parent,
+        media
       })
     })
       .then(r => r.json())
@@ -463,8 +501,19 @@ function App() {
         <br />
         <textarea value={output} onInput={e => setOutput(e.currentTarget.value)} />
         <br />
-        <button onClick={() => createDoot(output)} >Create Doot from above box</button>
-        <button onClick={() => reply(itemId, output)} >Create reply (parent from Item Id field above)</button>
+        <div>
+          {mediaToDisplay}
+        </div>
+        <br />
+        <button onClick={() => setMediaToDisplay([])}>Clear images</button>
+        <br />
+        <label for="mediaupload">
+          Media upload: 
+          <input name="mediaupload" type="file" accept="image/*,video/*" onChange={e => setMediaFiles(e.target.files)} />
+        </label>
+        <br />
+        <button onClick={() => createDoot(output, mediaFiles)} >Create Doot from above box</button>
+        <button onClick={() => reply(itemId, output, mediaFiles)} >Create reply (parent from Item Id field above)</button>
         <br />
         <br />
         <div>

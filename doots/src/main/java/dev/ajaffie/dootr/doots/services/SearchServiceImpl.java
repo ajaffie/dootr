@@ -6,7 +6,6 @@ import dev.ajaffie.dootr.doots.domain.QueryDto;
 import dev.ajaffie.dootr.doots.domain.User;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.Row;
-import io.vertx.axle.sqlclient.Tuple;
 import org.jooq.*;
 import org.jooq.conf.ParamType;
 import org.jooq.impl.DSL;
@@ -38,7 +37,7 @@ public class SearchServiceImpl implements SearchService {
 
     @PostConstruct
     public void setup() {
-        Migrations.runMigrations(client);
+        Migrations.runMigrations(client, CassandraClusterFactory.getSession());
     }
 
     @Override
@@ -47,34 +46,34 @@ public class SearchServiceImpl implements SearchService {
             query = new QueryDto();
         }
         logger.info("Running query with ts {} following {} username {} q {}...", query.timestamp, query.following, query.username, query.query);
-         Select builder = DSL.using(SQLDialect.MARIADB)
+        Select builder = DSL.using(SQLDialect.MARIADB)
                 .select()
                 .from("Doots d");
         Condition condition = DSL.condition("d.`Timestamp` < ?", query.timestamp);
-         if (query.username != null) {
+        if (query.username != null) {
             condition = condition.and("d.Username = ?", query.username);
-         }
-         if (query.following && user != null) {
-             condition = condition.and("d.Username IN (SELECT FollowedName FROM Follows WHERE FollowerName = ?)", user.username);
-         }
-         if (query.hasMedia) {
-             condition = condition.and("d.Id IN (SELECT DootId FROM Media)");
-         }
-         if (query.replies && query.parent != null) {
-             condition = condition.and("d.Parent = ?", query.parent);
-         }
-         if (query.query != null) {
-             condition = condition.and("MATCH(d.Content) AGAINST(?)", query.query);
-         }
-         builder = ((SelectFromStep)builder).where(condition);
-         if (query.rank.equals("time")){
-             builder = ((SelectWhereStep)builder).orderBy(DSL.field("d.Timestamp").desc());
-         } else {
-             builder = ((SelectWhereStep)builder).orderBy(DSL.field("((SELECT COUNT(*) FROM Likes WHERE DootId = d.Id) + (SELECT COUNT(*) FROM Doots d2 WHERE d.Id = d2.Parent AND d2.ChildType = 'retweet'))").desc());
-         }
-         builder = ((SelectOrderByStep)builder).limit(query.limit);
-         String sql = builder.getSQL(ParamType.INLINED);
-         logger.info("Generated SQL for query: {}", sql);
+        }
+        if (query.following && user != null) {
+            condition = condition.and("d.Username IN (SELECT FollowedName FROM Follows WHERE FollowerName = ?)", user.username);
+        }
+        if (query.hasMedia) {
+            condition = condition.and("d.Id IN (SELECT DootId FROM Media)");
+        }
+        if (query.replies && query.parent != null) {
+            condition = condition.and("d.Parent = ?", query.parent);
+        }
+        if (query.query != null) {
+            condition = condition.and("MATCH(d.Content) AGAINST(?)", query.query);
+        }
+        builder = ((SelectFromStep) builder).where(condition);
+        if (query.rank.equals("time")) {
+            builder = ((SelectWhereStep) builder).orderBy(DSL.field("d.Timestamp").desc());
+        } else {
+            builder = ((SelectWhereStep) builder).orderBy(DSL.field("((SELECT COUNT(*) FROM Likes WHERE DootId = d.Id) + (SELECT COUNT(*) FROM Doots d2 WHERE d.Id = d2.Parent AND d2.ChildType = 'retweet'))").desc());
+        }
+        builder = ((SelectOrderByStep) builder).limit(query.limit);
+        String sql = builder.getSQL(ParamType.INLINED);
+        logger.info("Generated SQL for query: {}", sql);
 
         return client.query(sql)
                 .thenApplyAsync(rs -> {

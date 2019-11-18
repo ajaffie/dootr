@@ -1,17 +1,26 @@
 package dev.ajaffie.dootr.doots.domain;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import io.vertx.axle.mysqlclient.MySQLPool;
+import io.vertx.axle.sqlclient.Row;
+import io.vertx.axle.sqlclient.RowSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 public class Migrations {
     private static boolean isMigrationDone = false;
     private static final Object lock = new Object();
 
-    public static void runMigrations(MySQLPool client) {
+    public static void runMigrations(MySQLPool client, CqlSession session) {
         synchronized (lock) {
             if (isMigrationDone) {
                 return;
             }
-            client.query(
+            Logger logger = LoggerFactory.getLogger(Migrations.class);
+            CompletableFuture<RowSet<Row>> sql = client.query(
                     "CREATE TABLE IF NOT EXISTS Doots (\n" +
                             "Id BIGINT(19) UNSIGNED PRIMARY KEY,\n" +
                             "Username MEDIUMTEXT NOT NULL,\n" +
@@ -54,7 +63,34 @@ public class Migrations {
                                     "PRIMARY KEY (DootId, MediaId)" +
                                     ");"
                     ))
-                    .toCompletableFuture().join();
+                    .handle((rs, err) -> {
+                        if (err != null) {
+                            logger.error("DootsDB migration error: {}", err.getMessage());
+                        }
+                        return rs;
+                    })
+                    .toCompletableFuture();
+            CompletableFuture<AsyncResultSet> cass = session.executeAsync(
+                    "CREATE KEYSPACE IF NOT EXISTS Media " +
+                    "WITH replication = {'class':'SimpleStrategy', 'replication_factor': 2}")
+                    .thenCompose(ars -> session.executeAsync(
+                            "CREATE TABLE IF NOT EXISTS Media.Media (\n" +
+                                    "Id bigint,\n" +
+                                    "UserId bigint,\n" +
+                                    "Mime text,\n" +
+                                    "Content blob,\n" +
+                                    "PRIMARY KEY (Id)" +
+                                    ");"
+                    ))
+                    .handle((ars, err) -> {
+                        if (err != null) {
+                            logger.error("Cassandra migration error: {}", err.getMessage());
+                        }
+                        return ars;
+                    })
+                    .toCompletableFuture();
+            sql.join();
+            cass.join();
             isMigrationDone = true;
         }
     }

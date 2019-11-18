@@ -1,7 +1,5 @@
 package dev.ajaffie.dootr.doots.domain;
 
-import io.vertx.axle.sqlclient.Row;
-
 import java.util.LinkedList;
 import java.util.List;
 

@@ -96,6 +96,14 @@ spec:
         backend:
           serviceName: doots
           servicePort: http
+      - path: /addmedia
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /media/[0-9]*
+        backend:
+          serviceName: doots
+          servicePort: http
 
   - host: dootr.ajaffie.dev
     http:
@@ -104,7 +112,15 @@ spec:
         backend:
           serviceName: doots
           servicePort: http
+      - path: /addmedia
+        backend:
+          serviceName: doots
+          servicePort: http
       - path: /item/[0-9]*
+        backend:
+          serviceName: doots
+          servicePort: http
+      - path: /media/[0-9]*
         backend:
           serviceName: doots
           servicePort: http

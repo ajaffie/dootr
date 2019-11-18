@@ -1,7 +1,6 @@
 package dev.ajaffie.dootr.doots.domain;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import io.vertx.axle.sqlclient.Row;
 
 import java.util.ArrayList;
 import java.util.List;

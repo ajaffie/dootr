@@ -1,13 +1,9 @@
 package dev.ajaffie.dootr.doots.controllers;
 
-import com.fasterxml.jackson.core.FormatFeature;
-import com.fasterxml.jackson.databind.DeserializationConfig;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ajaffie.dootr.doots.domain.*;
 import dev.ajaffie.dootr.doots.services.DootService;
 import io.smallrye.jwt.auth.principal.JWTAuthContextInfo;
 import io.smallrye.jwt.auth.principal.JWTCallerPrincipalFactory;
-import io.smallrye.jwt.auth.principal.ParseException;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.slf4j.Logger;
@@ -18,9 +14,6 @@ import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
