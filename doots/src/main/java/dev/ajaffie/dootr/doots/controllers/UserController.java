@@ -92,28 +92,45 @@ public class UserController {
         if (username == null || username.isEmpty()) {
             return CompletableFuture.completedFuture(Response.ok(new ErrorDto("Supply a username.")).build());
         }
-        return followService.following(username, limit)
+        Integer finalLimit = limit;
+        return authService.getUser(username).handle((u, ex) -> {
+            if (ex == null) {
+                return u;
+            }
+            logger.error("Error getting user {}: {}", username, ex.getMessage());
+            return null;
+        })
+                .thenCompose(uDto -> uDto != null ? followService.following(username, finalLimit) : null)
                 .thenApply(usernames -> {
                     if (usernames != null) {
                         return Response.ok(new OkWithUsernameListDto(usernames)).build();
                     } else {
-                        return Response.ok(new ErrorDto("Error getting users followed by " + username)).build();
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Error getting users followed by " + username)).build();
                     }
                 });
     }
+
     @GET
     @Path("/user/{username}/followers")
     public CompletionStage<Response> getFollowers(@PathParam("username") String username, @QueryParam("limit") Integer limit) {
         limit = fixLimit(limit);
         if (username == null || username.isEmpty()) {
-            return CompletableFuture.completedFuture(Response.ok(new ErrorDto("Supply a username.")).build());
+            return CompletableFuture.completedFuture(Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Supply a username.")).build());
         }
-        return followService.followers(username, limit)
+        Integer finalLimit = limit;
+        return authService.getUser(username).handle((u, ex) -> {
+            if (ex == null) {
+                return u;
+            }
+            logger.error("Error getting user {}: {}", username, ex.getMessage());
+            return null;
+        })
+                .thenCompose(uDto -> uDto != null ? followService.followers(username, finalLimit) : null)
                 .thenApply(usernames -> {
                     if (usernames != null) {
                         return Response.ok(new OkWithUsernameListDto(usernames)).build();
                     } else {
-                        return Response.ok(new ErrorDto("Error getting followers of " + username)).build();
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Error getting followers of " + username)).build();
                     }
                 });
     }
@@ -123,15 +140,24 @@ public class UserController {
     public CompletionStage<Response> getPosts(@PathParam("username") String username, @QueryParam("limit") Integer limit) {
         limit = fixLimit(limit);
         if (username == null || username.isEmpty()) {
-            return CompletableFuture.completedFuture(Response.ok(new ErrorDto("Supply a username.")).build());
+            return CompletableFuture.completedFuture(Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Supply a username.")).build());
         }
-        return dootService.getDootsForUser(username, limit)
+        Integer finalLimit = limit;
+        return authService.getUser(username).handle((u, ex) -> {
+            if (ex == null) {
+                return u;
+            }
+            logger.error("Error getting user {}: {}", username, ex.getMessage());
+            return null;
+        })
+                .thenCompose(uDto -> uDto != null ? dootService.getDootsForUser(username, finalLimit) : null)
                 .thenApply(dootIds -> {
                     if (dootIds == null) {
-                        return Response.ok(new ErrorDto("Error getting doots for " + username)).build();
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new ErrorDto("Error getting doots for " + username)).build();
                     }
                     return Response.ok(new OkWithIdListDto(dootIds)).build();
                 });
+
     }
 
     @GET
@@ -153,7 +179,7 @@ public class UserController {
                 .thenApply(v -> {
                     AuthResponseDto uDto = userFuture.join();
                     if (uDto == null) {
-                        return Response.ok(new ErrorDto("User not found.")).build();
+                        return Response.status(Response.Status.NOT_FOUND).entity(new ErrorDto("User not found.")).build();
                     }
                     logger.info("got user dto {} with username {} email {}", uDto, uDto.username, uDto.email);
                     return Response.ok(new OkWithUserDto(uDto.email, followersFuture.join(), followingFuture.join())).build();

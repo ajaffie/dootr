@@ -3,6 +3,7 @@ package dev.ajaffie.dootr.doots.services;
 import com.google.common.collect.ImmutableList;
 import dev.ajaffie.dootr.doots.domain.*;
 import io.vertx.axle.mysqlclient.MySQLPool;
+import io.vertx.axle.sqlclient.RowIterator;
 import io.vertx.axle.sqlclient.RowSet;
 import io.vertx.axle.sqlclient.Tuple;
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import javax.transaction.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -52,8 +54,16 @@ public class DootServiceImpl implements DootService {
             future = CompletableFuture.completedFuture(null);
         }
         return future.thenApplyAsync(parent -> {
-            if (addItemDto.media.stream()
-                    .map(mediaId -> mediaService.mediaBelongsToUser(mediaId, user).toCompletableFuture())
+            if (addItemDto.media == null || addItemDto.media.stream()
+                    .map(mediaId -> mediaService.mediaBelongsToUser(mediaId, user)
+                            .thenCompose(belongs -> belongs
+                                    ? client.preparedQuery("SELECT COUNT(*) FROM Media WHERE MediaId = ?", Tuple.of(mediaId))
+                                    .thenApply(RowSet::iterator)
+                                    .thenApply(RowIterator::next)
+                                    .thenApply(r -> r.getInteger(0) == 0)
+                                    : CompletableFuture.completedFuture(false)
+                            )
+                            .toCompletableFuture())
                     .allMatch(CompletableFuture::join)) {
                 return parent;
             } else {
@@ -82,10 +92,10 @@ public class DootServiceImpl implements DootService {
                     }
                     throw new DootException("There was an error creating the doot.");
                 })
-                .thenApplyAsync(success -> success && addItemDto.media.stream()
+                .thenApplyAsync(success -> success && (addItemDto.media == null || addItemDto.media.stream()
                         .map(mediaId -> client.preparedQuery("INSERT INTO Media (DootId, MediaId) VALUES (?, ?);",
                                 Tuple.of(newId, mediaId)).toCompletableFuture())
-                        .allMatch(rowSetCompletableFuture -> rowSetCompletableFuture.join().rowCount() == 1)
+                        .allMatch(rowSetCompletableFuture -> rowSetCompletableFuture.join().rowCount() == 1))
                 )
                 .handle((success, err) -> {
                     if (err instanceof MediaException) {
@@ -176,25 +186,28 @@ public class DootServiceImpl implements DootService {
     @Override
     @Transactional
     public CompletionStage<Boolean> likeDoot(long id, User user, boolean like) {
+        CompletionStage<Boolean> dootExists = getDoot(id).thenApply(Objects::nonNull);
         if (like) {
-            return client.preparedQuery("INSERT IGNORE INTO Likes (DootId, UserId, Username) VALUES (?, ?, ?);",
-                    Tuple.of(id, user.userId, user.username))
+            return dootExists.thenCompose(exists -> exists ? client.preparedQuery("INSERT IGNORE INTO Likes (DootId, UserId, Username) VALUES (?, ?, ?);",
+                    Tuple.of(id, user.userId, user.username)) : null)
                     .handle((rs, err) -> {
                         if (err != null) {
                             logger.error("Error liking doot: {}", err.getMessage());
                             return false;
+                        } else {
+                            return rs != null;
                         }
-                        return true;
                     });
         } else {
-            return client.preparedQuery("DELETE FROM Likes WHERE DootId = ? AND UserId = ? LIMIT 1;",
-                    Tuple.of(id, user.userId))
+            return dootExists.thenCompose(exists -> exists ? client.preparedQuery("DELETE FROM Likes WHERE DootId = ? AND UserId = ? LIMIT 1;",
+                    Tuple.of(id, user.userId)) : null)
                     .handle((rs, err) -> {
                         if (err != null) {
                             logger.error("Error unliking doot: {}", err.getMessage());
                             return false;
+                        } else {
+                            return rs != null;
                         }
-                        return true;
                     });
         }
     }

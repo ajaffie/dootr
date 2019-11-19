@@ -57,6 +57,10 @@ spec:
       containers:
       - image: bitnami/mariadb:10.3
         name: authdb
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: 2Gi
         env:
         - name: MARIADB_DATABASE
           value: dootr.auth

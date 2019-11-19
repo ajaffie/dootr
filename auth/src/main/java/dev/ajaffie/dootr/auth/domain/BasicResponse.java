@@ -20,7 +20,7 @@ public class BasicResponse {
     }
 
     public static Response error(String msg) {
-        return Response.ok().entity(new BasicResponse(false, msg)).build();
+        return Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, msg)).build();
     }
 
     public static Response ok() {

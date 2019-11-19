@@ -34,7 +34,7 @@ spec:
       tier: app
   strategy:
     type: Recreate
-  replicas: 1
+  replicas: 4
   template:
     metadata:
       labels:

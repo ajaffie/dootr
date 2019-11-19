@@ -65,7 +65,7 @@ public class UserServiceImpl implements UserService {
                 .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
                 .handle((s, ex) ->{
                     if (ex != null && !ex.getMessage().equals("An error occurred while creating the user.") && ex instanceof UserException) {
-                        return Response.status(Response.Status.OK).entity(new BasicResponse(false, ex.getMessage())).build();
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, ex.getMessage())).build();
                     } else if (ex != null) {
                         return BasicResponse.error(ex.getMessage());
                     }
@@ -83,11 +83,12 @@ public class UserServiceImpl implements UserService {
                         throw new UserException("Incorrect verification code provided.");
                     }
                     if (user.isEnabled()) {
+                        logger.warn("User {} already enabled.", user.getUsername());
                         throw new UserException("User is already enabled.");
                     }
                     return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
                 })
-                .handle((s, ex) -> ex != null ? Response.status(Response.Status.OK).entity(new BasicResponse(false, ex.getMessage())).build() : BasicResponse.ok());
+                .handle((s, ex) -> ex != null ? Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, ex.getMessage())).build() : BasicResponse.ok());
     }
 
     @Override
@@ -118,6 +119,7 @@ public class UserServiceImpl implements UserService {
                 .thenApply(user -> {
                     if (user == null
                             || !user.getPasswordHash().equals(User.hashPassword(creds.password, user.getSaltAsBytes()))) {
+                        logger.warn("User tried to log in with invalid credentials. User is null: {}, username: {}", user == null, creds.username);
                         throw new UserException("Invalid credentials.");
                     }
                     if (!user.isEnabled()) {
@@ -134,7 +136,7 @@ public class UserServiceImpl implements UserService {
                 })
                 .handle((token, err) -> {
                     if (err instanceof UserException) {
-                        return Response.status(Response.Status.OK).entity(new BasicResponse(false, err.getMessage())).build();
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, err.getMessage())).build();
                     } else if (err != null) {
                         return BasicResponse.error(err.getMessage());
                     }
