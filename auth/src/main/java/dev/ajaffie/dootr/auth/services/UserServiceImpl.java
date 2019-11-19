@@ -89,8 +89,10 @@ public class UserServiceImpl implements UserService {
                 })
                 .handle((s, ex) -> {
                     if (ex != null && !ex.getMessage().equals("An error occurred while creating the user.") && ex instanceof UserException) {
+                        logger.error("Error adding user: {}",ex.getMessage());
                         return Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, ex.getMessage())).build();
                     } else if (ex != null) {
+                        logger.error("Error adding user: {}",ex.getMessage());
                         return BasicResponse.error(ex.getMessage());
                     }
                     return BasicResponse.ok();
