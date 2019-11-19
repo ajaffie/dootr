@@ -10,5 +10,4 @@ public interface EmailService {
 
     CompletionStage<Boolean> sendEmail(Email email) throws IOException;
 
-    CompletionStage<Boolean> sendVerificationEmail(User user);
 }

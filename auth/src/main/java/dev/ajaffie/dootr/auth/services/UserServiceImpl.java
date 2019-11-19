@@ -1,18 +1,27 @@
 package dev.ajaffie.dootr.auth.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.nimbusds.jose.JOSEException;
 import dev.ajaffie.dootr.auth.domain.*;
+import io.smallrye.reactive.messaging.annotations.Emitter;
+import io.smallrye.reactive.messaging.annotations.Merge;
+import io.smallrye.reactive.messaging.annotations.Stream;
 import io.vertx.axle.mysqlclient.MySQLPool;
 import io.vertx.axle.sqlclient.RowSet;
 import io.vertx.axle.sqlclient.Tuple;
+import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.transaction.Transactional;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
@@ -23,14 +32,27 @@ public class UserServiceImpl implements UserService {
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
     private MySQLPool client;
     private boolean createSchema;
-    private EmailService emailService;
     private JWTService jwtService;
 
     @Inject
-    public UserServiceImpl(MySQLPool client, EmailService emailService, JWTService jwtService) {
+    @Stream("sendverification")
+    Emitter<String> sendEmailEmitter;
+    @Inject
+    @Stream("adduser")
+    Emitter<String> addUserEmitter;
+    @Inject
+    @Stream("verify")
+    Emitter<String> verifyEmitter;
+
+    private static ObjectReader userReader = new ObjectMapper().readerFor(User.class);
+    private static ObjectWriter userWriter = new ObjectMapper().writerFor(User.class);
+    private static ObjectReader addUserDtoReader = new ObjectMapper().readerFor(AddUserDto.class);
+    private static ObjectWriter addUserDtoWriter = new ObjectMapper().writerFor(AddUserDto.class);
+
+    @Inject
+    public UserServiceImpl(MySQLPool client, JWTService jwtService) {
         this.client = client;
         this.createSchema = !System.getenv().containsKey("DOOTR_NO_CREATE_SCHEMA");
-        this.emailService = emailService;
         this.jwtService = jwtService;
     }
 
@@ -47,37 +69,58 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
     public CompletionStage<Response> addUser(AddUserDto addUserRequest) {
         if (!isEmailValid(addUserRequest.email)) {
             return CompletableFuture.completedFuture(BasicResponse.error("Invalid email address."));
         }
-        User createdUser = new User(addUserRequest.email, addUserRequest.username, addUserRequest.password);
         return getByEmail(addUserRequest.email)
                 .thenCombine(getByUsername(addUserRequest.username), (u1, u2) -> u1 != null || u2 != null)
-                .thenCompose(userExists -> {
+                .thenApply(userExists -> {
                     if (userExists) {
                         throw new UserException("A user with the provided email or username already exists.");
                     }
-                    return saveUser(createdUser);
+                    try {
+                        addUserEmitter.send(addUserDtoWriter.writeValueAsString(addUserRequest));
+                    } catch (JsonProcessingException e) {
+                        logger.error("Error writing addUserDto: {}", e.getMessage());
+                        return false;
+                    }
+                    return true;
                 })
-                .thenCombine(emailService.sendVerificationEmail(createdUser), (s1, s2) -> s1)
-                .thenApply(success -> success ? BasicResponse.ok() : BasicResponse.error("An error occurred while creating the user."))
-                .handle((s, ex) ->{
+                .handle((s, ex) -> {
                     if (ex != null && !ex.getMessage().equals("An error occurred while creating the user.") && ex instanceof UserException) {
                         return Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, ex.getMessage())).build();
                     } else if (ex != null) {
                         return BasicResponse.error(ex.getMessage());
                     }
-                    return s;
+                    return BasicResponse.ok();
                 });
     }
 
+    @Incoming("adduser")
+    @Merge(value = Merge.Mode.MERGE)
+    @Acknowledgment(value = Acknowledgment.Strategy.POST_PROCESSING)
+    public CompletionStage writeAddUser(String serialized) {
+        AddUserDto addUserDto = null;
+        try {
+            addUserDto = addUserDtoReader.readValue(serialized);
+        } catch (IOException e) {
+            logger.error("Error reading addUserDto");
+            throw new UserException("Couldn't read addUserDto");
+        }
+        User user = new User(addUserDto.email, addUserDto.username, addUserDto.password);
+        try {
+            sendEmailEmitter.send(userWriter.writeValueAsString(user));
+        } catch (JsonProcessingException e) {
+            logger.error("Error writing user as string: {}", e.getMessage());
+        }
+        return saveUser(user);
+    }
+
     @Override
-    @Transactional
     public CompletionStage<Response> verifyUser(VerifyUserDto verifyRequest) {
         return getByEmail(verifyRequest.email)
-                .thenCompose(user -> {
+                .thenApply(user -> {
                     if (user == null || !(user.getVerifyCode().equals(verifyRequest.key) || verifyRequest.key.equals("abracadabra"))) {
                         logger.error("VERIFY: user {} expected {} got {}", user.getEmail(), user.getVerifyCode(), verifyRequest.key);
                         throw new UserException("Incorrect verification code provided.");
@@ -86,9 +129,28 @@ public class UserServiceImpl implements UserService {
                         logger.warn("User {} already enabled.", user.getUsername());
                         throw new UserException("User is already enabled.");
                     }
-                    return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
+                    try {
+                        verifyEmitter.send(userWriter.writeValueAsString(user));
+                    } catch (JsonProcessingException e) {
+                        return false;
+                    }
+                    return true;
                 })
                 .handle((s, ex) -> ex != null ? Response.status(Response.Status.BAD_REQUEST).entity(new BasicResponse(false, ex.getMessage())).build() : BasicResponse.ok());
+    }
+
+    @Incoming("verify")
+    @Merge(value = Merge.Mode.MERGE)
+    @Acknowledgment(value = Acknowledgment.Strategy.POST_PROCESSING)
+    public CompletionStage writeVerify(String serialized) {
+        User user;
+        try {
+            user = userReader.readValue(serialized);
+        } catch (IOException e) {
+            logger.error("Couldn't read user");
+            throw new UserException("Couldn't read user");
+        }
+        return client.preparedQuery("UPDATE Users SET Enabled = 1 WHERE Id = ?", Tuple.of(user.getId()));
     }
 
     @Override
@@ -98,11 +160,20 @@ public class UserServiceImpl implements UserService {
                     if (user == null) {
                         throw new UserException("User not found.");
                     }
+
                     return user;
+
                 })
-                .thenCompose(user -> emailService.sendVerificationEmail(user))
+                .thenApply(user -> {
+                    try {
+                        return sendEmailEmitter.send(userWriter.writeValueAsString(user));
+                    } catch (JsonProcessingException e) {
+                        logger.error("Error sending verification email.");
+                    }
+                    return true;
+                })
                 .handle((s, t) -> {
-                    if (t == null && s) {
+                    if (t == null) {
                         return BasicResponse.ok();
                     }
                     if (!(t instanceof UserException)) {

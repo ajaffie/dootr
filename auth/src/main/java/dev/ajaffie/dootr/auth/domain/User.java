@@ -1,5 +1,6 @@
 package dev.ajaffie.dootr.auth.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.vertx.axle.sqlclient.Row;
 import io.vertx.axle.sqlclient.Tuple;
 
@@ -91,16 +92,13 @@ public class User {
         return salt;
     }
 
+    @JsonIgnore
     public byte[] getSaltAsBytes() {
         return DatatypeConverter.parseHexBinary(salt);
     }
 
     public String getPasswordHash() {
         return passwordHash;
-    }
-
-    public byte[] getPasswordHashAsBytes() {
-        return DatatypeConverter.parseHexBinary(passwordHash);
     }
 
     public boolean isEnabled() {

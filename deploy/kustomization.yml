@@ -15,6 +15,7 @@ secretGenerator:
 resources:
 - prereqs/storage-classes.yml
 - prereqs/nginx-ingress.yml
+- rabbit.yml
 - cassandra.yml
 - authdb/authdb.yml
 - dootdb.yml
